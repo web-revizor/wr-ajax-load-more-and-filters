@@ -211,14 +211,24 @@ jQuery(function ($) {
     });
 
     $button.on("click", function () {
+        if ($(this).hasClass("allCategories")) {
+            if ($(this).hasClass("active")) {
+                $(this).removeClass("active");
+            }
+            return;
+        }
         if ($(this).hasClass("multiply-false")) {
             $button.removeClass("active");
             $(this).addClass("active");
         } else {
             if (!$(this).hasClass("active")) {
                 $(this).addClass("active");
+                $(".allCategories").removeClass("active");
             } else {
                 $(this).removeClass("active");
+                if ($button.not(".active").filter(".allCategories").length) {
+                    $(".allCategories").addClass("active");
+                }
             }
         }
     });
