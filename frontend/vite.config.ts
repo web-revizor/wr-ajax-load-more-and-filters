@@ -34,6 +34,7 @@ export default defineConfig({
             name: 'WebRevizorAiAgent',
             formats: ['iife'],
             fileName: () => 'app.js',
+            cssFileName: 'style',
         },
         rollupOptions: {
             external: ['react', 'react-dom'],
