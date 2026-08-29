@@ -127,35 +127,35 @@ class WRALM_Query_Config {
     public static function from_request( array $req ) {
         $c = new self();
 
-        $pt = isset( $req['post_type'] ) ? sanitize_key( $req['post_type'] ) : 'post';
-        if ( ! post_type_exists( $pt ) || ! is_post_type_viewable( $pt ) ) {
+        $pt = isset( $req['post_type'] ) && is_string( $req['post_type'] ) ? sanitize_key( $req['post_type'] ) : 'post';
+        if ( ! $pt || ! post_type_exists( $pt ) || ! is_post_type_viewable( $pt ) ) {
             $pt = 'post';
         }
         $c->post_type = $pt;
 
-        $c->posts_per_page  = isset( $req['posts_per_page'] ) ? (int) $req['posts_per_page'] : 10;
-        $c->pagination_type = isset( $req['pagination_type'] ) ? sanitize_key( $req['pagination_type'] ) : 'default';
-        $c->load_more_classes = isset( $req['more_classes'] ) ? sanitize_text_field( $req['more_classes'] ) : '';
-        $c->load_more_label   = isset( $req['more_label'] ) ? sanitize_text_field( $req['more_label'] ) : '';
-        $c->prev_text = isset( $req['prev_text'] ) ? sanitize_text_field( $req['prev_text'] ) : '';
-        $c->next_text = isset( $req['next_text'] ) ? sanitize_text_field( $req['next_text'] ) : '';
-        $c->filter_id = isset( $req['filter_id'] ) ? sanitize_key( $req['filter_id'] ) : '';
-        $c->update_url = ! isset( $req['update_url'] ) || 'false' !== strtolower( (string) $req['update_url'] );
-        $c->archive_context = isset( $req['archive_context'] ) && 'true' === strtolower( (string) $req['archive_context'] );
+        $c->posts_per_page  = isset( $req['posts_per_page'] ) && is_scalar( $req['posts_per_page'] ) ? (int) $req['posts_per_page'] : 10;
+        $c->pagination_type = isset( $req['pagination_type'] ) && is_string( $req['pagination_type'] ) ? sanitize_key( $req['pagination_type'] ) : 'default';
+        $c->load_more_classes = isset( $req['more_classes'] ) && is_string( $req['more_classes'] ) ? sanitize_text_field( $req['more_classes'] ) : '';
+        $c->load_more_label   = isset( $req['more_label'] ) && is_string( $req['more_label'] ) ? sanitize_text_field( $req['more_label'] ) : '';
+        $c->prev_text = isset( $req['prev_text'] ) && is_string( $req['prev_text'] ) ? sanitize_text_field( $req['prev_text'] ) : '';
+        $c->next_text = isset( $req['next_text'] ) && is_string( $req['next_text'] ) ? sanitize_text_field( $req['next_text'] ) : '';
+        $c->filter_id = isset( $req['filter_id'] ) && is_string( $req['filter_id'] ) ? sanitize_key( $req['filter_id'] ) : '';
+        $c->update_url = ! ( isset( $req['update_url'] ) && is_string( $req['update_url'] ) && 'false' === strtolower( $req['update_url'] ) );
+        $c->archive_context = isset( $req['archive_context'] ) && is_string( $req['archive_context'] ) && 'true' === strtolower( $req['archive_context'] );
 
-        $c->paged = isset( $req['page'] ) ? max( 1, absint( $req['page'] ) ) : 1;
+        $c->paged = isset( $req['page'] ) && is_scalar( $req['page'] ) ? max( 1, absint( $req['page'] ) ) : 1;
 
-        $c->base_url = isset( $req['base_url'] ) ? esc_url_raw( $req['base_url'] ) : home_url( '/' );
+        $c->base_url = isset( $req['base_url'] ) && is_string( $req['base_url'] ) ? esc_url_raw( $req['base_url'] ) : home_url( '/' );
 
-        $c->archive_term_id  = isset( $req['category_id'] ) ? absint( $req['category_id'] ) : 0;
-        $c->archive_taxonomy = isset( $req['category_taxonomy'] ) ? sanitize_key( $req['category_taxonomy'] ) : '';
+        $c->archive_term_id  = isset( $req['category_id'] ) && is_scalar( $req['category_id'] ) ? absint( $req['category_id'] ) : 0;
+        $c->archive_taxonomy = isset( $req['category_taxonomy'] ) && is_string( $req['category_taxonomy'] ) ? sanitize_key( $req['category_taxonomy'] ) : '';
 
-        if ( ! empty( $req['search'] ) ) {
-            $c->search = sanitize_text_field( wp_unslash( $req['search'] ) );
+        if ( ! empty( $req['search'] ) && is_string( $req['search'] ) ) {
+            $c->search = sanitize_text_field( $req['search'] );
         }
 
-        $c->order   = ( isset( $req['order'] ) && 'ASC' === strtoupper( $req['order'] ) ) ? 'ASC' : 'DESC';
-        $c->orderby = isset( $req['orderby'] ) ? self::sanitize_orderby( $req['orderby'] ) : 'date';
+        $c->order   = ( isset( $req['order'] ) && is_string( $req['order'] ) && 'ASC' === strtoupper( $req['order'] ) ) ? 'ASC' : 'DESC';
+        $c->orderby = isset( $req['orderby'] ) && is_string( $req['orderby'] ) ? self::sanitize_orderby( $req['orderby'] ) : 'date';
 
         if ( ! empty( $req['category'] ) && is_array( $req['category'] ) ) {
             foreach ( $req['category'] as $taxonomy => $slugs ) {
