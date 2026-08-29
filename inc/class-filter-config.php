@@ -3,10 +3,8 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
  * Single source of truth for the [all_posts_ajax_filters] panel config.
- * Built from shortcode attributes (from_atts). Replaces the hand-built
- * $load_more_variables global that render_filters() used to assemble.
- * to_legacy_array() reproduces (a superset of) that old shape so the
- * inc/views/filter.php and inc/views/order.php templates keep working.
+ * Built from shortcode attributes (from_atts). The instance is read directly
+ * by the inc/views/filter.php and inc/views/order.php templates.
  */
 class WRALM_Filter_Config {
 
@@ -98,39 +96,6 @@ class WRALM_Filter_Config {
             : sanitize_key( $a['post_type'] ) . '_filter';
 
         return $c;
-    }
-
-    /**
-     * The old $load_more_variables associative shape (18 keys) plus
-     * filter_id / enable_order / order_by_options / order_by_labels for later
-     * tasks. Harmless extras for the current views.
-     */
-    public function to_legacy_array() {
-        return array(
-            'enable_clear_button' => $this->enable_clear_button,
-            'filter_by_category'  => $this->filter_by_category,
-            'filter_type'         => $this->filter_type,
-            'filter_titles'       => $this->filter_titles,
-            'multiply_filter'     => $this->multiply_filter,
-            'filter_row_classes'  => $this->filter_row_classes,
-            'filter_item_classes' => $this->filter_item_classes,
-            'filter_item_limit'   => $this->filter_item_limit,
-            'filter_expand_label' => $this->filter_expand_label,
-            'filter_expand_class' => $this->filter_expand_class,
-            'filter_taxonomy'     => $this->filter_taxonomy,
-            'enable_search'       => $this->enable_search,
-            'all_category_button' => $this->all_category_button,
-            'show_filter_count'   => $this->show_filter_count,
-            'label_search_button' => $this->label_search_button,
-            'search_placeholder'  => $this->search_placeholder,
-            'label_newest_order'  => $this->label_newest_order,
-            'label_old_order'     => $this->label_old_order,
-            'post_type'           => $this->post_type,
-            'filter_id'           => $this->filter_id,
-            'enable_order'        => $this->enable_order,
-            'order_by_options'    => $this->orderby_options,
-            'order_by_labels'     => $this->orderby_labels,
-        );
     }
 
     /**

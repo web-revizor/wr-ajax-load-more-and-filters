@@ -3,21 +3,21 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-global $load_more_variables;
-$load_more_variables = isset( $config ) && $config instanceof WRALM_Filter_Config
-    ? $config->to_legacy_array()
-    : $load_more_variables;
+/** @var WRALM_Filter_Config $config — passed in scope by WRALM_Shortcode::render_filters(). */
+if ( ! ( isset( $config ) && $config instanceof WRALM_Filter_Config ) ) {
+    return;
+}
 ?>
 <div>
-    <select id="js-post-order-<?= esc_attr( $load_more_variables['filter_id'] ?? '' ) ?>"
+    <select id="js-post-order-<?= esc_attr( $config->filter_id ) ?>"
             class="js-post-order"
             data-role="order"
-            data-filter-id="<?= esc_attr( $load_more_variables['filter_id'] ?? '' ) ?>">
+            data-filter-id="<?= esc_attr( $config->filter_id ) ?>">
         <option value="DESC">
-            <?= esc_html($load_more_variables['label_newest_order']); ?>
+            <?= esc_html($config->label_newest_order); ?>
         </option>
         <option value="ASC">
-            <?= esc_html($load_more_variables['label_old_order']) ?>
+            <?= esc_html($config->label_old_order) ?>
         </option>
     </select>
 </div>
@@ -25,14 +25,14 @@ $load_more_variables = isset( $config ) && $config instanceof WRALM_Filter_Confi
 <?php
 // Parse options and labels the SAME way so their indices stay parallel; a blank
 // option slot is skipped in the loop (its label slot is skipped with it).
-$orderby_opts   = array_values( array_map( 'trim', explode( ',', (string) ( $load_more_variables['order_by_options'] ?? '' ) ) ) );
-$orderby_labels = array_values( array_map( 'trim', explode( ',', (string) ( $load_more_variables['order_by_labels'] ?? '' ) ) ) );
+$orderby_opts   = array_values( array_map( 'trim', explode( ',', (string) $config->orderby_options ) ) );
+$orderby_labels = array_values( array_map( 'trim', explode( ',', (string) $config->orderby_labels ) ) );
 ?>
 <?php if ( array_filter( $orderby_opts ) ) : ?>
     <div>
         <select class="js-post-orderby"
                 data-role="orderby"
-                data-filter-id="<?= esc_attr( $load_more_variables['filter_id'] ?? '' ) ?>">
+                data-filter-id="<?= esc_attr( $config->filter_id ) ?>">
             <?php foreach ( $orderby_opts as $i => $key ) : ?>
                 <?php if ( $key === '' ) { continue; } ?>
                 <option value="<?= esc_attr( $key ) ?>"><?= esc_html( isset( $orderby_labels[ $i ] ) && $orderby_labels[ $i ] !== '' ? $orderby_labels[ $i ] : ucfirst( str_replace( '_', ' ', $key ) ) ) ?></option>

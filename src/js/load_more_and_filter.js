@@ -133,14 +133,6 @@ jQuery(function ($) {
 
         this.filterId = String($holder.data('filter-id') || '');
         this.$filters = $('.ajax_filters_wrapper[data-filter-id="' + this.filterId + '"]');
-        if (!this.$filters.length) {
-            // pre-1.5.0 configs where the pair's implied filter_ids don't match:
-            // fall back to the sole panel on the page if there is exactly one.
-            var $allPanels = $('.ajax_filters_wrapper');
-            if ($allPanels.length === 1) {
-                this.$filters = $allPanels;
-            }
-        }
 
         this.$form = this.$filters.find('.all_posts_form');
         this.$search = this.$filters.find('.all-post-search');

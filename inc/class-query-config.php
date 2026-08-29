@@ -46,7 +46,6 @@ class WRALM_Query_Config {
             'prev_text'         => __( 'Previous', 'wr-ajax-load-more-and-filters' ),
             'next_text'         => __( 'Next', 'wr-ajax-load-more-and-filters' ),
             'filter_id'         => '',
-            'update_url'         => '', // deprecated alias for both sync_* flags
             'sync_filters_url'    => '',
             'sync_pagination_url' => '',
             'orderby'           => 'date',
@@ -67,8 +66,7 @@ class WRALM_Query_Config {
         $c->next_text         = sanitize_text_field( $a['next_text'] );
         list( $c->sync_filters_url, $c->sync_pagination_url ) = self::resolve_sync_flags(
             $a['sync_filters_url'],
-            $a['sync_pagination_url'],
-            $a['update_url']
+            $a['sync_pagination_url']
         );
         $c->orderby           = self::sanitize_orderby( $a['orderby'] );
 
@@ -128,29 +126,19 @@ class WRALM_Query_Config {
     }
 
     /**
-     * Resolve the [ sync_filters_url, sync_pagination_url ] pair.
-     * Each flag: its own attribute wins; otherwise the deprecated `update_url`
-     * alias applies to both; otherwise default true. Any value other than the
-     * literal string "false" (case-insensitive) counts as on.
+     * Resolve the [ sync_filters_url, sync_pagination_url ] pair. Each flag
+     * defaults to true; any value other than the literal string "false"
+     * (case-insensitive) counts as on.
      *
      * @return array [ bool $sync_filters_url, bool $sync_pagination_url ]
      */
-    public static function resolve_sync_flags( $filters_raw, $pagination_raw, $alias_raw ) {
-        $filters    = strtolower( trim( (string) $filters_raw ) );
-        $pagination = strtolower( trim( (string) $pagination_raw ) );
-        $alias      = strtolower( trim( (string) $alias_raw ) );
-
-        $pick = function ( $own ) use ( $alias ) {
-            if ( '' !== $own ) {
-                return 'false' !== $own;
-            }
-            if ( '' !== $alias ) {
-                return 'false' !== $alias;
-            }
-            return true;
+    public static function resolve_sync_flags( $filters_raw, $pagination_raw ) {
+        $pick = function ( $raw ) {
+            $raw = strtolower( trim( (string) $raw ) );
+            return '' === $raw ? true : 'false' !== $raw;
         };
 
-        return array( $pick( $filters ), $pick( $pagination ) );
+        return array( $pick( $filters_raw ), $pick( $pagination_raw ) );
     }
 
     public static function sanitize_orderby( $value ) {
@@ -238,8 +226,7 @@ class WRALM_Query_Config {
         };
         list( $c->sync_filters_url, $c->sync_pagination_url ) = self::resolve_sync_flags(
             $req_flag( 'sync_filters_url' ),
-            $req_flag( 'sync_pagination_url' ),
-            $req_flag( 'update_url' )
+            $req_flag( 'sync_pagination_url' )
         );
         $c->archive_context = isset( $req['archive_context'] ) && is_string( $req['archive_context'] ) && 'true' === strtolower( $req['archive_context'] );
 

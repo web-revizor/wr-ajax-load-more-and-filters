@@ -3,10 +3,10 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-global $load_more_variables;
-$load_more_variables = isset( $config ) && $config instanceof WRALM_Filter_Config
-    ? $config->to_legacy_array()
-    : $load_more_variables;
+/** @var WRALM_Filter_Config $config — passed in scope by WRALM_Shortcode::render_filters(). */
+if ( ! ( isset( $config ) && $config instanceof WRALM_Filter_Config ) ) {
+    return;
+}
 
 if ( ! function_exists( 'wralm_term_tree' ) ) {
     /**
@@ -33,24 +33,23 @@ if ( ! function_exists( 'wralm_render_filter_terms' ) ) {
      * Recursively render filter buttons for a term tree (button mode).
      * Increments $printed by the number of buttons emitted (for the item-limit toggle).
      *
-     * @param array  $terms     List of WP_Term objects (callers must pass a real array).
-     * @param string $taxonomy  Taxonomy slug.
-     * @param array  $by_parent [ parent_term_id => WP_Term[] ] — the whole term
-     *                          tree fetched once, so this recursion never calls
-     *                          get_terms() per term.
-     * @param array  $v         Legacy $load_more_variables array.
-     * @param int    $depth     Current nesting depth (0 = root).
-     * @param int    $printed   Running count of buttons emitted, passed by reference.
-     * @param int    $limit     filter_item_limit (0 = unlimited).
-     * @param array  $counts    [ term_id => visible post count ] from
-     *                         WRALM_Filter_Config::term_visible_counts(), or an
-     *                         empty array when counts are disabled
-     *                         (show_filter_count="false"). When non-empty a term
-     *                         with 0 visible posts is skipped; when empty every
-     *                         term (that survived hide_empty) is rendered and no
-     *                         count <span> is emitted.
+     * @param array               $terms     List of WP_Term objects (callers must pass a real array).
+     * @param string              $taxonomy  Taxonomy slug.
+     * @param array               $by_parent [ parent_term_id => WP_Term[] ] — the whole term
+     *                                       tree fetched once, so this recursion never calls
+     *                                       get_terms() per term.
+     * @param WRALM_Filter_Config  $config    Panel config.
+     * @param int                 $depth     Current nesting depth (0 = root).
+     * @param int                 $printed   Running count of buttons emitted, passed by reference.
+     * @param int                 $limit     filter_item_limit (0 = unlimited).
+     * @param array               $counts    [ term_id => visible post count ] from
+     *                                       WRALM_Filter_Config::term_visible_counts(), or an
+     *                                       empty array when counts are disabled
+     *                                       (show_filter_count="false"). When non-empty a term
+     *                                       with 0 visible posts is skipped; when empty every
+     *                                       term is rendered and no count <span> is emitted.
      */
-    function wralm_render_filter_terms( array $terms, $taxonomy, array $by_parent, array $v, $depth, &$printed, $limit, array $counts = array() ) {
+    function wralm_render_filter_terms( array $terms, $taxonomy, array $by_parent, WRALM_Filter_Config $config, $depth, &$printed, $limit, array $counts = array() ) {
         $show_count = ! empty( $counts );
 
         foreach ( $terms as $term ) {
@@ -75,8 +74,8 @@ if ( ! function_exists( 'wralm_render_filter_terms' ) ) {
 
             printf(
                 '<button type="submit" class="js-category-filter multiply-%s %s%s%s" data-taxonomy="%s" data-slug="%s"><span class="text">%s</span>%s</button>',
-                esc_attr( $v['multiply_filter'] ),
-                esc_attr( $v['filter_item_classes'] ),
+                esc_attr( $config->multiply_filter ),
+                esc_attr( $config->filter_item_classes ),
                 esc_attr( $depth_class ),
                 esc_attr( $hidden ),
                 esc_attr( $taxonomy ),
@@ -87,7 +86,7 @@ if ( ! function_exists( 'wralm_render_filter_terms' ) ) {
             $printed++;
 
             if ( $children ) {
-                wralm_render_filter_terms( $children, $taxonomy, $by_parent, $v, $depth + 1, $printed, $limit, $counts );
+                wralm_render_filter_terms( $children, $taxonomy, $by_parent, $config, $depth + 1, $printed, $limit, $counts );
             }
         }
     }
@@ -127,40 +126,40 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
     }
 }
 ?>
-<form id="all_posts_filter_<?= esc_attr( $load_more_variables['filter_id'] ?? '' ) ?>"
+<form id="all_posts_filter_<?= esc_attr( $config->filter_id ) ?>"
       class="all_posts_form"
       role="search"
-      data-filter-id="<?= esc_attr( $load_more_variables['filter_id'] ?? '' ) ?>">
-    <?php if ($load_more_variables['enable_search'] === 'true'): ?>
+      data-filter-id="<?= esc_attr( $config->filter_id ) ?>">
+    <?php if ($config->enable_search === 'true'): ?>
         <div class="all-post-search-holder">
             <input class="all-post-search"
                    type="search"
-                   id="all-post-search-<?= esc_attr( $load_more_variables['filter_id'] ?? '' ) ?>"
-                   placeholder="<?= esc_attr($load_more_variables['search_placeholder']); ?>"
+                   id="all-post-search-<?= esc_attr( $config->filter_id ) ?>"
+                   placeholder="<?= esc_attr($config->search_placeholder); ?>"
                    data-role="search">
             <button type="submit"
                     class="all-post-submit">
-                <?= esc_html($load_more_variables['label_search_button']); ?>
+                <?= esc_html($config->label_search_button); ?>
             </button>
         </div>
     <?php endif; ?>
-    <?php if ($load_more_variables['filter_by_category'] === 'true' || $load_more_variables['enable_clear_button'] === 'true'): ?>
+    <?php if ($config->filter_by_category === 'true' || $config->enable_clear_button === 'true'): ?>
         <?php
-        $filter_expand_label = $load_more_variables['filter_expand_label'];
-        $filter_expand_class = $load_more_variables['filter_expand_class'];
-        $limit               = (int) ( $load_more_variables['filter_item_limit'] ?? 0 );
+        $filter_expand_label = $config->filter_expand_label;
+        $filter_expand_class = $config->filter_expand_class;
+        $limit               = (int) $config->filter_item_limit;
         $printed             = 0;
-        $show_filter_count   = ( ( $load_more_variables['show_filter_count'] ?? 'true' ) !== 'false' );
+        $show_filter_count   = ( $config->show_filter_count !== 'false' );
         ?>
-        <div class="<?= esc_attr($load_more_variables['filter_row_classes']) ?>">
-            <?php $categoriesArray = explode(',', $load_more_variables['filter_taxonomy']) ?>
-            <?php if ($load_more_variables['filter_by_category'] === 'true'): ?>
-            <?php if ($load_more_variables['filter_type'] === 'button'): ?>
+        <div class="<?= esc_attr($config->filter_row_classes) ?>">
+            <?php $categoriesArray = explode(',', $config->filter_taxonomy) ?>
+            <?php if ($config->filter_by_category === 'true'): ?>
+            <?php if ($config->filter_type === 'button'): ?>
                 <button type="submit"
-                        class="js-category-filter allCategories active multiply-<?= esc_attr($load_more_variables['multiply_filter']) ?> <?= esc_attr($load_more_variables['filter_item_classes']); ?>">
-                    <span class="text"><?= esc_html($load_more_variables['all_category_button']); ?></span>
+                        class="js-category-filter allCategories active multiply-<?= esc_attr($config->multiply_filter) ?> <?= esc_attr($config->filter_item_classes); ?>">
+                    <span class="text"><?= esc_html($config->all_category_button); ?></span>
                     <?php if ( $show_filter_count ): ?>
-                    <span class="postCount"><?= (int) ( isset( $config ) && $config instanceof WRALM_Filter_Config ? WRALM_Filter_Config::visible_count( $load_more_variables['post_type'] ) : wp_count_posts( $load_more_variables['post_type'] )->publish ) ?></span>
+                    <span class="postCount"><?= (int) WRALM_Filter_Config::visible_count( $config->post_type ) ?></span>
                     <?php endif; ?>
                 </button>
                 <?php foreach ($categoriesArray as $taxonomy) : ?>
@@ -171,15 +170,15 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
                     $roots     = isset( $by_parent[0] ) ? $by_parent[0] : array();
                     // Counts (one grouped query behind them) only when shown.
                     $term_counts = $show_filter_count
-                        ? WRALM_Filter_Config::term_visible_counts( $load_more_variables['post_type'], $taxonomy )
+                        ? WRALM_Filter_Config::term_visible_counts( $config->post_type, $taxonomy )
                         : array();
                     ?>
-                    <?php if ($roots && $load_more_variables['filter_titles'] === 'true' && $name): ?>
+                    <?php if ($roots && $config->filter_titles === 'true' && $name): ?>
                         <p class="filterHeading"><?= esc_html($name->label) ?></p>
                     <?php endif; ?>
-                    <?php wralm_render_filter_terms( $roots, $taxonomy, $by_parent, $load_more_variables, 0, $printed, $limit, $term_counts ); ?>
+                    <?php wralm_render_filter_terms( $roots, $taxonomy, $by_parent, $config, 0, $printed, $limit, $term_counts ); ?>
                 <?php endforeach; ?>
-            <?php elseif ($load_more_variables['filter_type'] === 'select'): ?>
+            <?php elseif ($config->filter_type === 'select'): ?>
                 <?php foreach ($categoriesArray as $taxonomy) : ?>
                     <?php
                     $taxonomy  = trim( $taxonomy );
@@ -190,8 +189,8 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
                     ?>
 
                     <div class="category-filter-select-holder">
-                        <select <?= $load_more_variables['multiply_filter'] == 'true' ? 'multiple' : '' ?>
-                                class="js-category-filter-select <?= esc_attr($load_more_variables['filter_item_classes']); ?>"
+                        <select <?= $config->multiply_filter == 'true' ? 'multiple' : '' ?>
+                                class="js-category-filter-select <?= esc_attr($config->filter_item_classes); ?>"
                                 data-taxonomy="<?= esc_attr($taxonomy) ?>">
                             <option value=""><?= esc_html( $label ) ?></option>
                             <?php wralm_render_filter_options( $roots, $taxonomy, $by_parent, 0 ); ?>
@@ -200,7 +199,7 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
                 <?php endforeach; ?>
             <?php endif; ?>
             <?php endif; /* filter_by_category */ ?>
-            <?php if ($load_more_variables['enable_clear_button'] === 'true'): ?>
+            <?php if ($config->enable_clear_button === 'true'): ?>
                 <button type="submit"
                         class="js-clear-filter">
                     <?php esc_html_e('Clear Filters', 'wr-ajax-load-more-and-filters'); ?>

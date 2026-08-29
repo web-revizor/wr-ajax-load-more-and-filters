@@ -8,9 +8,7 @@ if (!defined('ABSPATH')) {
  * Front-end script enqueue + the list/filter endpoint.
  *
  * The endpoint is a REST GET route (wralm/v1/list) so a reverse proxy / CDN can
- * cache it; the legacy admin-ajax `loadmore` action stays as a thin shim over
- * the same handler for themes that call it directly. Both delegate to
- * build_list_response().
+ * cache it. build_list_response() is the shared handler.
  */
 class WRALM_Load_More
 {
@@ -21,8 +19,6 @@ class WRALM_Load_More
     {
         add_action('wp_enqueue_scripts', [$this, 'enqueue_scripts']);
         add_action('rest_api_init', [$this, 'register_rest']);
-        add_action('wp_ajax_loadmore', [$this, 'handle_ajax']);
-        add_action('wp_ajax_nopriv_loadmore', [$this, 'handle_ajax']);
     }
 
     public function enqueue_scripts()
@@ -41,7 +37,6 @@ class WRALM_Load_More
 
         wp_localize_script('my_loadmore', 'loadmore_params', array(
             'resturl'      => esc_url_raw(rest_url(self::REST_NAMESPACE . self::REST_ROUTE)),
-            'ajaxurl'      => admin_url('admin-ajax.php'), // legacy consumers
             'current_page' => get_query_var('paged') ? get_query_var('paged') : 1,
             'max_page'     => $wp_query->max_num_pages,
             'nonce'        => wp_create_nonce('wp_rest'),
@@ -89,11 +84,6 @@ class WRALM_Load_More
         // changes slowly. Short TTL keeps staleness bounded.
         $response->header('Cache-Control', 'public, max-age=30');
         return $response;
-    }
-
-    public function handle_ajax()
-    {
-        wp_send_json($this->build_list_response(wp_unslash($_POST)));
     }
 
     /**
