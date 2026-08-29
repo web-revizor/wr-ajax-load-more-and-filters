@@ -32,7 +32,6 @@ class WRALM_Load_More
 
         wp_localize_script('my_loadmore', 'loadmore_params', array(
             'ajaxurl' => admin_url('admin-ajax.php'),
-            'posts' => $wp_query->query_vars,
             'current_page' => get_query_var('paged') ? get_query_var('paged') : 1,
             'max_page' => $wp_query->max_num_pages,
             'nonce' => wp_create_nonce('wralm_loadmore'),
@@ -79,6 +78,7 @@ class WRALM_Load_More
         if (!empty($parsed['query'])) {
             wp_parse_str($parsed['query'], $add_args);
             unset($add_args['paged'], $add_args['page']);
+            $add_args = urlencode_deep($add_args);
         }
 
         $pagination = WRALM_Pagination::links(

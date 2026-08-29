@@ -80,7 +80,7 @@ CI (`.github/workflows/build.yml`) на push у `main` читає `Version:` з 
 
 ### Публічний скрипт (`src/js/load_more_and_filter.js`)
 
-Один IIFE на jQuery (`jQuery` — глобал від WordPress, не бандлиться). Керується даними з DOM: читає `data-*` з `.ajax_row`, класи `.js-category-filter` / `.js-category-filter-select` / `#all-post-search` / `#js-post-order` / `#all_posts_filter`. Синхронізує стан фільтрів з URL (`history.pushState`, параметри `<taxonomy>=slug` і `filter_search`), відновлює стан з URL на завантаженні. Після кожного запиту тригерить події `AjaxPaginationDone` / `AjaxFilterDone` на `document` — публічний API для тем.
+Один IIFE на jQuery (`jQuery` — глобал від WordPress, не бандлиться). Один контролер (`Instance`) на `.ajax_row_holder`, усе scoped по `[data-filter-id]`. Керується даними з DOM: читає `data-*` з `.ajax_row`, класи `.js-category-filter` / `.js-category-filter-select` / `.all-post-search` / `.js-post-order` / `.js-post-orderby` / `.all_posts_form` у межах панелі `.ajax_filters_wrapper[data-filter-id="…"]` (id тепер instance-suffixed, не селектори). Fallback: якщо жодна панель не збіглася за `filter-id`, а на сторінці рівно одна `.ajax_filters_wrapper` — береться вона (pre-1.5.0 пари з розбіжним implied `filter_id`). Синхронізує стан фільтрів з URL (`history.pushState`, параметри `<taxonomy>=slug` і `filter_search`), відновлює стан з URL на завантаженні. Після кожного запиту тригерить події `AjaxPaginationDone` / `AjaxFilterDone` на `document` і на `.ajax_row_holder` — публічний API для тем.
 
 ### Адмін-консоль (`frontend/`)
 

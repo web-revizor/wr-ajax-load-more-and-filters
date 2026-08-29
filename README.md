@@ -53,6 +53,13 @@ straight out of `.github/workflows/build.yml`, the slug comes from
 - load_more_classes: string
 - prev_text: string
 - next_text: string
+- orderby: initial sort key for the list. Whitelist:
+  `date,title,menu_order,rand,modified,comment_count` plus the WooCommerce keys
+  `price,popularity,rating` (default `date`). Sanitised by `from_atts`, emitted
+  as `data-orderby` and read by the JS `orderbyValue()` as the fallback when the
+  filter panel's order `<select>` has no value. The filter panel's
+  `order_by_options` still drives the runtime sort dropdown; `orderby` only sets
+  the starting value for the list itself.
 - update_url: `"true"` | `"false"` (default `"true"`).
   - `"true"` — pagination `<a>` elements carry real `href`s and the script
     keeps the current filter / search / page state in the address bar via
@@ -64,10 +71,10 @@ straight out of `.github/workflows/build.yml`, the slug comes from
     `data-page`), and the script performs **no** `history.pushState` / URL
     rewriting. Filter / page state is in-memory only.
 
-Note: sort order (`orderby`) for `[all_posts_ajax]` is controlled from the
-**filters** shortcode via `order_by_options` (see below), not by an attribute
-on `[all_posts_ajax]` itself. The Newest / Oldest direction select and the
-`order_by_options` select both post their value into the same list query.
+Note: `orderby` on `[all_posts_ajax]` only sets the **initial** sort of the
+list. At runtime the sort is driven by the **filters** shortcode — the Newest /
+Oldest direction select and the `order_by_options` select both post their value
+into the same list query.
 
 #### `[all_posts_ajax_filters]` (the filter / search / order panel)
 
@@ -187,6 +194,14 @@ themes / custom CSS / custom JS that reached into the plugin's markup:
   filter button is still the raw WordPress taxonomy term count and may include
   hidden / catalog-invisible posts. Only the "All (N)" count is corrected to
   match the actual result set.
+- **Initial render forces `post_status="publish"`.** The `[all_posts_ajax]`
+  first (server-side) render now always queries only published posts. 1.4.0 let
+  capable logged-in users see private / draft posts on page 1, while AJAX pages
+  always showed only `publish` — this makes the two consistent. Use the
+  `wralm_query_args` filter to restore other statuses.
+- **"All (N)" count is not language-partitioned.** The count transient
+  (`wralm_vcount_<post_type>`) is shared across languages, so on WPML / Polylang
+  the "All (N)" number is the same in every language.
 
 ## Known limitations
 

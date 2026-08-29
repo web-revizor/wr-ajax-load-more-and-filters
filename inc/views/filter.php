@@ -118,6 +118,7 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
         ?>
         <div class="<?= esc_attr($load_more_variables['filter_row_classes']) ?>">
             <?php $categoriesArray = explode(',', $load_more_variables['filter_taxonomy']) ?>
+            <?php if ($load_more_variables['filter_by_category'] === 'true'): ?>
             <?php if ($load_more_variables['filter_type'] === 'button'): ?>
                 <button type="submit"
                         class="js-category-filter allCategories active multiply-<?= esc_attr($load_more_variables['multiply_filter']) ?> <?= esc_attr($load_more_variables['filter_item_classes']); ?>">
@@ -132,7 +133,7 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
                         'taxonomy'   => $taxonomy,
                         'parent'     => 0,
                         'exclude'    => $exclude_term_id,
-                        'hide_empty' => false,
+                        'hide_empty' => true,
                     ) );
                     $roots = is_array( $roots ) ? $roots : array();
                     ?>
@@ -150,7 +151,7 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
                     $roots    = get_terms( array(
                         'taxonomy'   => $taxonomy,
                         'parent'     => 0,
-                        'hide_empty' => false,
+                        'hide_empty' => true,
                     ) );
                     $roots = is_array( $roots ) ? $roots : array();
                     ?>
@@ -165,6 +166,7 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
                     </div>
                 <?php endforeach; ?>
             <?php endif; ?>
+            <?php endif; /* filter_by_category */ ?>
             <?php if ($load_more_variables['enable_clear_button'] === 'true'): ?>
                 <button type="submit"
                         class="js-clear-filter">

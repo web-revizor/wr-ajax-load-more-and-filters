@@ -91,9 +91,15 @@ jQuery(function ($) {
         this.$row = $holder.find('.ajax_row').first();
 
         this.filterId = String($holder.data('filter-id') || '');
-        this.$filters = this.filterId
-            ? $('.ajax_filters_wrapper[data-filter-id="' + this.filterId + '"]')
-            : $('.ajax_filters_wrapper').first();
+        this.$filters = $('.ajax_filters_wrapper[data-filter-id="' + this.filterId + '"]');
+        if (!this.$filters.length) {
+            // pre-1.5.0 configs where the pair's implied filter_ids don't match:
+            // fall back to the sole panel on the page if there is exactly one.
+            var $allPanels = $('.ajax_filters_wrapper');
+            if ($allPanels.length === 1) {
+                this.$filters = $allPanels;
+            }
+        }
 
         this.$form = this.$filters.find('.all_posts_form');
         this.$search = this.$filters.find('.all-post-search');
@@ -233,8 +239,14 @@ jQuery(function ($) {
         this.page = parseInt(opts.page, 10) || 1;
 
         var category = this.collectCategories();
+        var url = this.buildUrl(category); // absolute-path URL this action navigates to
         var data = this.buildData(category);
-        var url = this.updateUrl && opts.pushUrl ? this.buildUrl(category) : null;
+        if (this.updateUrl) {
+            // send the POST-action URL so the response's pagination hrefs embed
+            // the NEW filter state, not the pre-action one.
+            data.base_url = url;
+        }
+        var pushUrl = this.updateUrl && opts.pushUrl ? url : null;
 
         this.$holder.css('opacity', '0.5');
 
@@ -261,8 +273,8 @@ jQuery(function ($) {
 
             self.$holder.css('opacity', '1');
 
-            if (url) {
-                window.history.pushState(null, '', url);
+            if (pushUrl) {
+                window.history.pushState(null, '', pushUrl);
             }
 
             $(document).trigger(opts.event);

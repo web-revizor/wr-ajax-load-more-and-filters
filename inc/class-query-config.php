@@ -70,7 +70,10 @@ class WRALM_Query_Config {
             : $c->post_type . '_filter';
 
         // Page context: real /page/N/ URLs only make sense on archive-ish pages.
-        $c->archive_context = ( is_archive() || is_home() || is_front_page()
+        // NOT is_front_page(): a static-Page front page is is_front_page() but
+        // pretty /page/2/ there routes to the blog index, not the front page.
+        // is_home() already covers the "latest posts" front page.
+        $c->archive_context = ( is_archive() || is_home()
             || is_post_type_archive() || is_category() || is_tag() || is_tax() );
 
         $c->paged = self::current_paged();
@@ -134,6 +137,14 @@ class WRALM_Query_Config {
         $c->post_type = $pt;
 
         $c->posts_per_page  = isset( $req['posts_per_page'] ) && is_scalar( $req['posts_per_page'] ) ? (int) $req['posts_per_page'] : 10;
+
+        // Public nopriv endpoint: clamp so a hostile client can't request -1 /
+        // 500000 (unbounded query + full card render). from_atts() is unaffected
+        // and still allows -1.
+        $max = (int) apply_filters( 'wralm_max_posts_per_page', 200 );
+        if ( $c->posts_per_page < 1 || $c->posts_per_page > $max ) {
+            $c->posts_per_page = $max;
+        }
         $c->pagination_type = isset( $req['pagination_type'] ) && is_string( $req['pagination_type'] ) ? sanitize_key( $req['pagination_type'] ) : 'default';
         $c->load_more_classes = isset( $req['more_classes'] ) && is_string( $req['more_classes'] ) ? sanitize_text_field( $req['more_classes'] ) : '';
         $c->load_more_label   = isset( $req['more_label'] ) && is_string( $req['more_label'] ) ? sanitize_text_field( $req['more_label'] ) : '';
