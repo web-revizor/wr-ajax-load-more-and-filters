@@ -23,6 +23,7 @@ class WRALM_Filter_Config {
     public $filter_expand_class = 'filter_expand';
     public $filter_taxonomy = 'category';
     public $all_category_button = '';
+    public $show_filter_count = 'true';
     public $enable_search = false;
     public $label_search_button = '';
     public $search_placeholder = '';
@@ -49,6 +50,7 @@ class WRALM_Filter_Config {
             'filter_expand_class' => 'filter_expand',
             'filter_taxonomy'     => 'category',
             'all_category_button' => __( 'All', 'wr-ajax-load-more-and-filters' ),
+            'show_filter_count'   => 'true',
             'enable_search'       => false,
             'label_search_button' => __( 'Search', 'wr-ajax-load-more-and-filters' ),
             'search_placeholder'  => __( 'Search', 'wr-ajax-load-more-and-filters' ),
@@ -78,6 +80,7 @@ class WRALM_Filter_Config {
         $c->filter_expand_class = $a['filter_expand_class'];
         $c->filter_taxonomy     = $a['filter_taxonomy'];
         $c->all_category_button = $a['all_category_button'];
+        $c->show_filter_count   = ( 'false' === strtolower( (string) $a['show_filter_count'] ) ) ? 'false' : 'true';
         $c->enable_search       = $a['enable_search'];
         $c->label_search_button = $a['label_search_button'];
         $c->search_placeholder  = $a['search_placeholder'];
@@ -114,6 +117,7 @@ class WRALM_Filter_Config {
             'filter_taxonomy'     => $this->filter_taxonomy,
             'enable_search'       => $this->enable_search,
             'all_category_button' => $this->all_category_button,
+            'show_filter_count'   => $this->show_filter_count,
             'label_search_button' => $this->label_search_button,
             'search_placeholder'  => $this->search_placeholder,
             'label_newest_order'  => $this->label_newest_order,

@@ -23,6 +23,7 @@ export interface FilterSettings {
   filterType: FilterType;
   enableFilterTitles: boolean;
   multiplyFilter: boolean;
+  showFilterCount: boolean;
   filterRowClasses: string;
   filterItemClasses: string;
   filterTaxonomy: string[];

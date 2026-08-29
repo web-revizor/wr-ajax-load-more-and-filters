@@ -98,6 +98,9 @@ into the same list query.
 - filter_type: button/select
 - filter_titles: boolean
 - all_category_button: string
+- show_filter_count: `"true"` | `"false"` (default `"true"`). `"false"` drops the
+  `<span class="postCount">` from every filter button (and the "All" button),
+  and skips the per-term count queries entirely. Button mode only.
 - enable_search: boolean
 - label_search_button: string
 - search_placeholder: string
@@ -211,6 +214,8 @@ themes / custom CSS / custom JS that reached into the plugin's markup:
   and child-term posts are included (matching what clicking the button shows).
   A term with nothing visible is dropped from the panel. Cached per
   `(post_type, taxonomy)` in a 5-minute transient, like the "All (N)" count.
+  Set `show_filter_count="false"` on `[all_posts_ajax_filters]` to hide the
+  counts and skip these queries.
 - **Initial render forces `post_status="publish"`.** The `[all_posts_ajax]`
   first (server-side) render now always queries only published posts. 1.4.0 let
   capable logged-in users see private / draft posts on page 1, while AJAX pages

@@ -20,10 +20,16 @@ if ( ! function_exists( 'wralm_render_filter_terms' ) ) {
      * @param int    $printed  Running count of buttons emitted, passed by reference.
      * @param int    $limit    filter_item_limit (0 = unlimited).
      * @param array  $counts   [ term_id => visible post count ] from
-     *                         WRALM_Filter_Config::term_visible_counts(); a term
-     *                         missing from the map falls back to $term->count.
+     *                         WRALM_Filter_Config::term_visible_counts(), or an
+     *                         empty array when counts are disabled
+     *                         (show_filter_count="false"). When non-empty a term
+     *                         with 0 visible posts is skipped; when empty every
+     *                         term (that survived hide_empty) is rendered and no
+     *                         count <span> is emitted.
      */
     function wralm_render_filter_terms( array $terms, $taxonomy, array $v, $depth, &$printed, $limit, array $counts = array() ) {
+        $show_count = ! empty( $counts );
+
         foreach ( $terms as $term ) {
             $children = get_terms( array(
                 'taxonomy'   => $taxonomy,
@@ -40,7 +46,7 @@ if ( ! function_exists( 'wralm_render_filter_terms' ) ) {
 
             // A term with nothing visible once the list's exclusions are
             // applied would render a button that shows an empty result set.
-            if ( 0 === $count ) {
+            if ( $show_count && 0 === $count ) {
                 continue;
             }
 
@@ -50,7 +56,7 @@ if ( ! function_exists( 'wralm_render_filter_terms' ) ) {
                 : ' childCategory';
 
             printf(
-                '<button type="submit" class="js-category-filter multiply-%s %s%s%s" data-taxonomy="%s" data-slug="%s"><span class="text">%s</span><span class="postCount">%d</span></button>',
+                '<button type="submit" class="js-category-filter multiply-%s %s%s%s" data-taxonomy="%s" data-slug="%s"><span class="text">%s</span>%s</button>',
                 esc_attr( $v['multiply_filter'] ),
                 esc_attr( $v['filter_item_classes'] ),
                 esc_attr( $depth_class ),
@@ -58,7 +64,7 @@ if ( ! function_exists( 'wralm_render_filter_terms' ) ) {
                 esc_attr( $taxonomy ),
                 esc_attr( $term->slug ),
                 esc_html( $term->name ),
-                $count
+                $show_count ? '<span class="postCount">' . (int) $count . '</span>' : ''
             );
             $printed++;
 
@@ -126,6 +132,7 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
         $filter_expand_class = $load_more_variables['filter_expand_class'];
         $limit               = (int) ( $load_more_variables['filter_item_limit'] ?? 0 );
         $printed             = 0;
+        $show_filter_count   = ( ( $load_more_variables['show_filter_count'] ?? 'true' ) !== 'false' );
         ?>
         <div class="<?= esc_attr($load_more_variables['filter_row_classes']) ?>">
             <?php $categoriesArray = explode(',', $load_more_variables['filter_taxonomy']) ?>
@@ -134,7 +141,9 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
                 <button type="submit"
                         class="js-category-filter allCategories active multiply-<?= esc_attr($load_more_variables['multiply_filter']) ?> <?= esc_attr($load_more_variables['filter_item_classes']); ?>">
                     <span class="text"><?= esc_html($load_more_variables['all_category_button']); ?></span>
+                    <?php if ( $show_filter_count ): ?>
                     <span class="postCount"><?= (int) ( isset( $config ) && $config instanceof WRALM_Filter_Config ? WRALM_Filter_Config::visible_count( $load_more_variables['post_type'] ) : wp_count_posts( $load_more_variables['post_type'] )->publish ) ?></span>
+                    <?php endif; ?>
                 </button>
                 <?php foreach ($categoriesArray as $taxonomy) : ?>
                     <?php
@@ -146,7 +155,10 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
                         'hide_empty' => true,
                     ) );
                     $roots = is_array( $roots ) ? $roots : array();
-                    $term_counts = WRALM_Filter_Config::term_visible_counts( $load_more_variables['post_type'], $taxonomy );
+                    // Counts (and the N queries behind them) only when shown.
+                    $term_counts = $show_filter_count
+                        ? WRALM_Filter_Config::term_visible_counts( $load_more_variables['post_type'], $taxonomy )
+                        : array();
                     ?>
                     <?php if ($roots && $load_more_variables['filter_titles'] === 'true' && $name): ?>
                         <p class="filterHeading"><?= esc_html($name->label) ?></p>

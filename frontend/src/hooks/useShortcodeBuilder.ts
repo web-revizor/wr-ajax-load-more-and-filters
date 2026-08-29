@@ -23,6 +23,7 @@ const defaultFilters: FilterSettings = {
     filterType: 'button',
     enableFilterTitles: false,
     multiplyFilter: false,
+    showFilterCount: true,
     filterRowClasses: '',
     filterItemClasses: '',
     filterTaxonomy: [],
@@ -102,6 +103,9 @@ export function useShortcodeBuilder() {
             sc += attr('all_category_button', filters.allCategoryButton);
             sc += attr('filter_by_category', true);
             sc += attr('multiply_filter', filters.multiplyFilter);
+            if (!filters.showFilterCount) {
+                sc += ' show_filter_count="false"';
+            }
             sc += attr('enable_clear_button', filters.enableClearButton);
             sc += attr('filter_titles', filters.enableFilterTitles);
         }
