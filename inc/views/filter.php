@@ -92,13 +92,15 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
 ?>
 <form id="all_posts_filter"
       class="all_posts_form"
-      role="search">
+      role="search"
+      data-filter-id="<?= esc_attr( $load_more_variables['filter_id'] ?? '' ) ?>">
     <?php if ($load_more_variables['enable_search'] === 'true'): ?>
         <div class="all-post-search-holder">
             <input class="all-post-search"
                    type="search"
                    id="all-post-search"
-                   placeholder="<?= esc_attr($load_more_variables['search_placeholder']); ?>">
+                   placeholder="<?= esc_attr($load_more_variables['search_placeholder']); ?>"
+                   data-role="search">
             <button type="submit"
                     class="all-post-submit">
                 <?= esc_html($load_more_variables['label_search_button']); ?>
