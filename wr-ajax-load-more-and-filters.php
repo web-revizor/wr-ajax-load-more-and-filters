@@ -22,6 +22,7 @@ define('WRALM_VERSION', '1.4.0');
 require_once WRALM_PATH . 'inc/class-pagination.php';
 require_once WRALM_PATH . 'inc/class-query-config.php';
 require_once WRALM_PATH . 'inc/class-shortcode.php';
+require_once WRALM_PATH . 'inc/class-filter-config.php';
 require_once WRALM_PATH . 'inc/class-load-more.php';
 require_once WRALM_PATH . 'inc/class-admin.php';
 require_once WRALM_PATH . 'inc/class-hide-meta-box.php';

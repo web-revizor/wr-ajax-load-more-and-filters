@@ -70,64 +70,27 @@ class WRALM_Shortcode
     {
         global $load_more_variables;
 
-        $default = array(
-            'post_type' => 'post',
-            'enable_clear_button' => false,
-            'filter_by_category' => false,
-            'multiply_filter' => 'false',
-            'filter_type' => 'button',
-            'filter_titles' => false,
-            'filter_row_classes' => 'filter_row',
-            'filter_item_classes' => 'filter_item',
-            'filter_item_limit' => 0,
-            'filter_expand_label' => __('See all', 'wr-ajax-load-more-and-filters'),
-            'filter_expand_class' => 'filter_expand_class',
-            'filter_taxonomy' => 'category',
-            'all_category_button' => __('All', 'wr-ajax-load-more-and-filters'),
-            'enable_search' => false,
-            'label_search_button' => __('Search', 'wr-ajax-load-more-and-filters'),
-            'search_placeholder' => __('Search', 'wr-ajax-load-more-and-filters'),
-            'enable_order' => false,
-            'label_newest_order' => __('Newest First', 'wr-ajax-load-more-and-filters'),
-            'label_old_order' => __('Old First', 'wr-ajax-load-more-and-filters'),
-            'filter_id' => '',
-        );
+        $config = WRALM_Filter_Config::from_atts($atts);
+        $load_more_variables = $config->to_legacy_array();
 
-        $a = shortcode_atts($default, $atts);
+        $filter_id = $config->filter_id;
+        $wrap_attr = ' data-filter-id="' . esc_attr($filter_id) . '"';
 
-        $load_more_variables = array(
-            'enable_clear_button' => $a['enable_clear_button'],
-            'filter_by_category' => $a['filter_by_category'],
-            'filter_type' => $a['filter_type'],
-            'filter_titles' => $a['filter_titles'],
-            'multiply_filter' => $a['multiply_filter'],
-            'filter_row_classes' => $a['filter_row_classes'],
-            'filter_item_classes' => $a['filter_item_classes'],
-            'filter_item_limit' => $a['filter_item_limit'],
-            'filter_expand_label' => $a['filter_expand_label'],
-            'filter_expand_class' => $a['filter_expand_class'],
-            'filter_taxonomy' => $a['filter_taxonomy'],
-            'enable_search' => $a['enable_search'],
-            'all_category_button' => $a['all_category_button'],
-            'label_search_button' => $a['label_search_button'],
-            'search_placeholder' => $a['search_placeholder'],
-            'label_newest_order' => $a['label_newest_order'],
-            'label_old_order' => $a['label_old_order'],
-            'post_type' => $a['post_type'],
-        );
+        $results = '<div class="ajax_filters_wrapper"' . $wrap_attr . '>';
 
-        $filter_id = $a['filter_id'];
-        $filter_data_attr = $filter_id ? ' data-filter-id="' . esc_attr($filter_id) . '"' : '';
+        $need_filter_view = in_array('true', array(
+            (string) $config->filter_by_category,
+            (string) $config->enable_search,
+            (string) $config->enable_clear_button,
+        ), true);
 
-        $results = '<div class="ajax_filters_wrapper"' . $filter_data_attr . '>';
-
-        if ($a['filter_by_category'] === 'true' || $a['enable_search'] === 'true') {
+        if ($need_filter_view) {
             ob_start();
             require WRALM_PATH . 'inc/views/filter.php';
             $results .= ob_get_clean();
         }
 
-        if ($a['enable_order'] === 'true') {
+        if ('true' === (string) $config->enable_order) {
             ob_start();
             require WRALM_PATH . 'inc/views/order.php';
             $results .= ob_get_clean();

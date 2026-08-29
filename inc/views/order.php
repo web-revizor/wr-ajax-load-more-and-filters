@@ -4,6 +4,9 @@ if (!defined('ABSPATH')) {
 }
 
 global $load_more_variables;
+$load_more_variables = isset( $config ) && $config instanceof WRALM_Filter_Config
+    ? $config->to_legacy_array()
+    : $load_more_variables;
 ?>
 <div>
     <select id="js-post-order">
