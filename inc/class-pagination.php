@@ -208,12 +208,12 @@ class WRALM_Pagination
 
         switch ($args['type']) {
             case 'list':
-                $r .= "<div id='pagination_holder' class='load_more_holder'>";
+                $r .= "<div class='pagination_holder load_more_holder'>";
                 $r .= implode("\n", $page_links);
                 $r .= "</div>";
                 break;
             case 'both':
-                $r .= "<div id='pagination_holder' class='load_more_holder'>";
+                $r .= "<div class='pagination_holder load_more_holder'>";
                 $r .= implode("\n", $page_links);
                 $r .= '<div>' . implode("\n", $page_links_more) . '</div>';
                 $r .= "</div>";
@@ -221,7 +221,7 @@ class WRALM_Pagination
             case 'none':
                 break;
             default:
-                $r .= "<div id='pagination_holder' class='load_more_holder'>";
+                $r .= "<div class='pagination_holder load_more_holder'>";
                 $r .= implode("\n", $page_links_more);
                 $r .= "</div>";
                 break;

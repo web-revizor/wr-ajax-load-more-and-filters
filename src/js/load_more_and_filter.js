@@ -1,329 +1,378 @@
+/**
+ * WR Ajax Load More & Filters — public front-end controller.
+ *
+ * One `Instance` per `.ajax_row_holder`. Every selector is scoped to the
+ * instance's holder (`this.$holder`) or to its filter panel (`this.$filters`,
+ * matched by `data-filter-id`), so several `[all_posts_ajax]` /
+ * `[all_posts_ajax_filters]` pairs can live on the same page without
+ * interfering with each other.
+ *
+ * jQuery is a WordPress global; this file is bundled as a plain IIFE.
+ */
 jQuery(function ($) {
-    let posts_per_page = "",
-        posts_type = "",
-        page = 1,
-        pagination_type = "",
-        more_classes = "",
-        more_label = "",
-        prev_text = "",
-        next_text = "",
-        category = {},
-        category_id = "",
-        category_taxonomy = "",
-        search = "",
-        order = "",
-        this_load_more = "",
-        data = [],
-        urlParams = new URLSearchParams(window.location.search),
-        first = true,
-        URLArray = "",
-        filterCheck = false,
-        searchCheck,
-        initLoad = false;
+    'use strict';
 
-    const ajax_row_holder = $(".ajax_row_holder");
-    const row_items = $(".ajax_row");
-    const $select = $(".js-category-filter-select");
-    const $button = $(".js-category-filter");
-    const $form = $("#all_posts_filter");
-    const $search = $("#all-post-search");
-    const $order = $("#js-post-order");
-    const totalSelect = $select.length;
-    const totalButton = $button.length;
+    var params = window.loadmore_params || {};
 
-    function posts_per_page_fn() {
-        posts_per_page = row_items.attr("data-posts-per-page");
-    }
+    // holder element -> Instance, used by the delegated pagination handler.
+    var instances = new Map();
 
-    function posts_type_fn() {
-        posts_type = row_items.attr("data-posts-type");
-    }
+    var NO_RESULTS = '<div class="no-results-found">no results found</div>';
 
-    function pagination_type_fn() {
-        pagination_type = row_items.attr("data-pagination-type");
-    }
+    /* ------------------------------------------------------------------ *
+     * Filter panel (shared UI state)
+     *
+     * The panel handlers only mutate DOM state (active classes, cleared
+     * inputs) and then let the native `submit` of the `type="submit"`
+     * buttons drive the request. They are bound ONCE per panel, so a panel
+     * shared by two lists does not toggle the same button twice.
+     * ------------------------------------------------------------------ */
 
-    function more_classes_fn() {
-        more_classes = row_items.attr("data-more-classes");
-    }
-
-    function more_label_fn() {
-        more_label = row_items.attr("data-more-label");
-    }
-
-    function prev_text_fn() {
-        prev_text = row_items.attr("data-prev-text");
-    }
-
-    function next_text_fn() {
-        next_text = row_items.attr("data-next-text");
-    }
-
-    function category_id_fn() {
-        category_id = row_items.attr("data-cat-id");
-    }
-
-    function category_taxonomy_fn() {
-        category_taxonomy = row_items.attr("data-cat-taxonomy");
-    }
-
-    function init_page_fn() {
-        return ajax_row_holder.attr("data-init-page");
-    }
-
-    function category_fn() {
-        category = {};
-        URLArray = "";
-        first = true;
-        if ($("button").hasClass("js-category-filter")) {
-            $(".js-category-filter.active").each(function () {
-                if (!$(this).hasClass("allCategories")) {
-                    let taxonomy = $(this).attr("data-taxonomy");
-                    let slug = $(this).attr("data-slug");
-                    category[taxonomy] =
-                        category[taxonomy] && Array.isArray(category[taxonomy])
-                            ? [...category[taxonomy], slug]
-                            : [slug];
-                }
-            });
-        }
-        if ($("select").hasClass("js-category-filter-select")) {
-            $select.each(function () {
-                if ($(this).val()) {
-                    let taxonomy = $(this).attr("data-taxonomy");
-                    let slug = $(this).val();
-                    category[taxonomy] =
-                        category[taxonomy] && Array.isArray(category[taxonomy])
-                            ? [...category[taxonomy], slug]
-                            : [slug];
-                }
-            });
-        }
-        $.each(category, function (i, v) {
-            if (first) {
-                URLArray += i + "=" + v;
-                first = false;
-            } else {
-                URLArray += "&" + i + "=" + v;
-            }
-        });
-    }
-
-    function all_param(url) {
-        posts_per_page_fn();
-        posts_type_fn();
-        pagination_type_fn();
-        more_classes_fn();
-        more_label_fn();
-        prev_text_fn();
-        next_text_fn();
-        category_fn();
-        category_id_fn();
-        category_taxonomy_fn();
-        if (initLoad) {
-            page = init_page_fn();
-        } else {
-            page = loadmore_params.current_page;
-        }
-
-        search = $search.val();
-        order = $order.val();
-        this_load_more = $(".load_more_holder");
-
-        window.history.pushState(null, null, url);
-
-        if (search && search !== "") {
-            if (first) {
-                URLArray += "filter_search=" + search;
-                first = false;
-            } else {
-                URLArray += "&filter_search=" + search;
-            }
-        }
-        if (URLArray !== "") {
-            window.history.pushState(null, null, "?" + URLArray);
-        } else {
-            var clean_uri =
-                location.protocol + "//" + location.host + location.pathname;
-            window.history.pushState(null, null, clean_uri);
-        }
-
-        data = {
-            action: "loadmore",
-            query: loadmore_params.posts,
-            page: page,
-            posts_per_page: posts_per_page,
-            post_type: posts_type,
-            pagination_type: pagination_type,
-            category: category,
-            search: search,
-            order: order,
-            more_classes: more_classes,
-            more_label: more_label,
-            prev_text: prev_text,
-            next_text: next_text,
-            category_id: category_id,
-            category_taxonomy: category_taxonomy,
-            base_url: window.location.pathname,
-        };
-    }
-
-    if (urlParams.has("filter_search")) {
-        $search.val(urlParams.get("filter_search"));
-        searchCheck = true;
-    } else {
-        searchCheck = false;
-    }
-
-    $(document).on("click", "#pagination_holder .load_page", function (e) {
-        e.preventDefault();
-        loadmore_params.current_page = $(this).data("page");
-        const url = $(this).attr("href");
-        all_param(url);
-
-        let clearRow = true;
-
-        if ($(this).hasClass("load_more")) {
-            clearRow = false;
-        }
-
-        $.ajax({
-            url: loadmore_params.ajaxurl,
-            data: data,
-            type: "POST",
-            beforeSend: function (xhr) {
-                ajax_row_holder.css("opacity", "0.5");
-            },
-            success: function (data) {
-                if (data) {
-                    this_load_more.remove();
-                    if (clearRow === true) {
-                        row_items.empty();
-                    }
-                    row_items.append(data.html);
-                    ajax_row_holder.append(data.pagination);
-                    ajax_row_holder.css("opacity", "1");
-                }
-            },
-        }).done(function () {
-            $(document).trigger("AjaxPaginationDone");
-        });
-    });
-
-    $button.on("click", function () {
-        if ($(this).hasClass("allCategories")) {
-            if ($(this).hasClass("active")) {
-                $(this).removeClass("active");
+    function toggleFilterButton($buttons, $btn) {
+        if ($btn.hasClass('allCategories')) {
+            if ($btn.hasClass('active')) {
+                $btn.removeClass('active');
             }
             return;
         }
-        if ($(this).hasClass("multiply-false")) {
-            $button.removeClass("active");
-            $(this).addClass("active");
+
+        if ($btn.hasClass('multiply-false')) {
+            $buttons.removeClass('active');
+            $btn.addClass('active');
+            return;
+        }
+
+        if (!$btn.hasClass('active')) {
+            $btn.addClass('active');
+            $buttons.filter('.allCategories').removeClass('active');
         } else {
-            if (!$(this).hasClass("active")) {
-                $(this).addClass("active");
-                $(".allCategories").removeClass("active");
-            } else {
-                $(this).removeClass("active");
-                if ($button.not(".active").filter(".allCategories").length) {
-                    $(".allCategories").addClass("active");
-                }
+            $btn.removeClass('active');
+            if (!$buttons.filter('.active').not('.allCategories').length) {
+                $buttons.filter('.allCategories').addClass('active');
             }
         }
+    }
+
+    function bindPanels($panels) {
+        $panels.each(function () {
+            var $panel = $(this);
+
+            if ($panel.data('wralmBound')) {
+                return;
+            }
+            $panel.data('wralmBound', true);
+
+            $panel.on('click', '.js-category-filter', function () {
+                toggleFilterButton($panel.find('.js-category-filter'), $(this));
+            });
+
+            $panel.on('click', '.js-clear-filter', function () {
+                $panel.find('.js-category-filter').removeClass('active');
+                $panel.find('.all-post-search').val('');
+                $panel.find('.js-category-filter-select').prop('selectedIndex', 0);
+            });
+
+            $panel.on(
+                'change',
+                '.js-category-filter-select, .js-post-order, .js-post-orderby',
+                function () {
+                    $panel.find('.all_posts_form').trigger('submit');
+                }
+            );
+        });
+    }
+
+    /* ------------------------------------------------------------------ *
+     * Instance
+     * ------------------------------------------------------------------ */
+
+    function Instance($holder) {
+        this.$holder = $holder;
+        this.$row = $holder.find('.ajax_row').first();
+
+        this.filterId = String($holder.data('filter-id') || '');
+        this.$filters = this.filterId
+            ? $('.ajax_filters_wrapper[data-filter-id="' + this.filterId + '"]')
+            : $('.ajax_filters_wrapper').first();
+
+        this.$form = this.$filters.find('.all_posts_form');
+        this.$search = this.$filters.find('.all-post-search');
+        this.$order = this.$filters.find('.js-post-order');
+        this.$orderby = this.$filters.find('.js-post-orderby'); // Phase 8
+        this.$buttons = this.$filters.find('.js-category-filter');
+        this.$selects = this.$filters.find('.js-category-filter-select');
+
+        this.updateUrl = String(this.$row.data('update-url')) !== 'false';
+        this.archiveContext = String(this.$row.data('archive-context')) === 'true';
+        this.initPage = parseInt($holder.data('init-page'), 10) || 1;
+
+        this.page = this.initPage;
+        this.seq = 0;
+        this.xhr = null;
+
+        bindPanels(this.$filters);
+        this.bind();
+        this.restoreFromUrl();
+    }
+
+    /** Raw `data-*` string off `.ajax_row` (never undefined). */
+    Instance.prototype.rowAttr = function (name) {
+        var value = this.$row.attr('data-' + name);
+        return typeof value === 'undefined' || value === null ? '' : String(value);
+    };
+
+    Instance.prototype.searchTerm = function () {
+        return this.$search.length ? this.$search.val() || '' : '';
+    };
+
+    Instance.prototype.orderValue = function () {
+        return (this.$order.length && this.$order.val()) || 'DESC';
+    };
+
+    Instance.prototype.orderbyValue = function () {
+        if (this.$orderby.length && this.$orderby.val()) {
+            return this.$orderby.val();
+        }
+        return this.rowAttr('orderby') || 'date';
+    };
+
+    /** { taxonomy: [slug, ...] } from the active buttons + non-empty selects. */
+    Instance.prototype.collectCategories = function () {
+        var category = {};
+
+        function push(taxonomy, slug) {
+            if (!taxonomy || slug === null || typeof slug === 'undefined' || slug === '') {
+                return;
+            }
+            if (!category[taxonomy]) {
+                category[taxonomy] = [];
+            }
+            category[taxonomy] = category[taxonomy].concat(slug);
+        }
+
+        this.$buttons.filter('.active').each(function () {
+            var $btn = $(this);
+            if ($btn.hasClass('allCategories')) {
+                return;
+            }
+            push($btn.attr('data-taxonomy'), $btn.attr('data-slug'));
+        });
+
+        this.$selects.each(function () {
+            var value = $(this).val();
+            if (!value || (Array.isArray(value) && !value.length)) {
+                return;
+            }
+            push($(this).attr('data-taxonomy'), value);
+        });
+
+        return category;
+    };
+
+    /**
+     * The ONE url pushed for an action: current pathname plus the serialized
+     * filter/search state, or the bare pathname when nothing is filtered.
+     */
+    Instance.prototype.buildUrl = function (category) {
+        var parts = [];
+        var search = this.searchTerm();
+
+        $.each(category, function (taxonomy, slugs) {
+            parts.push(
+                encodeURIComponent(taxonomy) + '=' +
+                $.map([].concat(slugs), encodeURIComponent).join(',')
+            );
+        });
+
+        if (search !== '') {
+            parts.push('filter_search=' + encodeURIComponent(search));
+        }
+
+        return parts.length
+            ? window.location.pathname + '?' + parts.join('&')
+            : window.location.pathname;
+    };
+
+    /** POST body for admin-ajax `loadmore`. No `query` key (Task 5.2). */
+    Instance.prototype.buildData = function (category) {
+        return {
+            action: 'loadmore',
+            page: this.page,
+            posts_per_page: this.rowAttr('posts-per-page'),
+            post_type: this.rowAttr('posts-type'),
+            pagination_type: this.rowAttr('pagination-type'),
+            category: category,
+            category_id: this.rowAttr('cat-id'),
+            category_taxonomy: this.rowAttr('cat-taxonomy'),
+            search: this.searchTerm(),
+            order: this.orderValue(),
+            orderby: this.orderbyValue(),
+            more_classes: this.rowAttr('more-classes'),
+            more_label: this.rowAttr('more-label'),
+            prev_text: this.rowAttr('prev-text'),
+            next_text: this.rowAttr('next-text'),
+            filter_id: this.filterId,
+            update_url: this.updateUrl ? 'true' : 'false',
+            archive_context: this.archiveContext ? 'true' : 'false',
+            base_url: window.location.pathname + window.location.search
+        };
+    };
+
+    /**
+     * opts: { page, clearRow, pushUrl, emptyHtml, event }
+     */
+    Instance.prototype.request = function (opts) {
+        var self = this;
+        var mySeq = ++this.seq;
+
+        if (this.xhr) {
+            this.xhr.abort();
+        }
+
+        this.page = parseInt(opts.page, 10) || 1;
+
+        var category = this.collectCategories();
+        var data = this.buildData(category);
+        var url = this.updateUrl && opts.pushUrl ? this.buildUrl(category) : null;
+
+        this.$holder.css('opacity', '0.5');
+
+        this.xhr = $.ajax({
+            url: params.ajaxurl,
+            type: 'POST',
+            data: data
+        }).done(function (res) {
+            if (mySeq !== self.seq) {
+                return; // stale response, a newer request already owns the DOM
+            }
+            self.xhr = null;
+
+            if (res) {
+                self.$holder.find('.load_more_holder').remove();
+                if (opts.clearRow) {
+                    self.$row.empty();
+                }
+                self.$row.append(res.html ? res.html : opts.emptyHtml || '');
+                if (res.pagination) {
+                    self.$holder.append(res.pagination);
+                }
+            }
+
+            self.$holder.css('opacity', '1');
+
+            if (url) {
+                window.history.pushState(null, '', url);
+            }
+
+            $(document).trigger(opts.event);
+            self.$holder.trigger(opts.event);
+        }).fail(function (jqXHR, textStatus) {
+            if (mySeq !== self.seq || textStatus === 'abort') {
+                return;
+            }
+            self.xhr = null;
+            self.$holder.css('opacity', '1');
+        });
+    };
+
+    Instance.prototype.paginate = function ($link) {
+        this.request({
+            page: parseInt($link.attr('data-page'), 10) || 1,
+            clearRow: !$link.hasClass('load_more'),
+            pushUrl: true,
+            emptyHtml: '',
+            event: 'AjaxPaginationDone'
+        });
+    };
+
+    Instance.prototype.filter = function (page, pushUrl) {
+        this.request({
+            page: parseInt(page, 10) || 1,
+            clearRow: true,
+            pushUrl: pushUrl,
+            emptyHtml: NO_RESULTS,
+            event: 'AjaxFilterDone'
+        });
+    };
+
+    Instance.prototype.bind = function () {
+        var self = this;
+
+        this.$form.on('submit', function (e) {
+            e.preventDefault();
+            self.filter(1, true);
+        });
+    };
+
+    /**
+     * Restore filter/search state from the URL, then fire ONE request for it.
+     * Filter state restored from the URL keeps the server-rendered page
+     * (`data-init-page`); a search-only URL starts at page 1.
+     */
+    Instance.prototype.restoreFromUrl = function () {
+        var urlParams = new URLSearchParams(window.location.search);
+        var restoredFilter = false;
+        var restoredSearch = false;
+
+        if (urlParams.has('filter_search') && this.$search.length) {
+            this.$search.val(urlParams.get('filter_search'));
+            restoredSearch = true;
+        }
+
+        this.$selects.each(function () {
+            var taxonomy = $(this).attr('data-taxonomy');
+            if (!taxonomy || !urlParams.has(taxonomy)) {
+                return;
+            }
+            var values = urlParams.get(taxonomy).split(',');
+            $(this).val(this.multiple ? values : values[0]);
+            restoredFilter = true;
+        });
+
+        this.$buttons.each(function () {
+            var $btn = $(this);
+            if ($btn.hasClass('allCategories')) {
+                return;
+            }
+            var taxonomy = $btn.attr('data-taxonomy');
+            if (!taxonomy || !urlParams.has(taxonomy)) {
+                return;
+            }
+            if ($.inArray($btn.attr('data-slug'), urlParams.get(taxonomy).split(',')) !== -1) {
+                $btn.addClass('active');
+                restoredFilter = true;
+            }
+        });
+
+        if (restoredFilter) {
+            this.$buttons.filter('.allCategories').removeClass('active');
+            this.filter(this.initPage, false);
+        } else if (restoredSearch) {
+            this.filter(1, false);
+        }
+    };
+
+    /* ------------------------------------------------------------------ *
+     * Boot + delegated pagination routing
+     * ------------------------------------------------------------------ */
+
+    $('.ajax_row_holder').each(function () {
+        instances.set(this, new Instance($(this)));
     });
 
-    $(".js-clear-filter").on("click", function () {
-        $button.removeClass("active");
-        $search.val("");
-        $select.prop("selectedIndex", 0);
-    });
-
-    $order.on("change", function () {
-        $form.trigger("submit");
-    });
-
-    $select.on("change", function () {
-        $form.trigger("submit");
-    });
-
-    $form.on("submit", function (e) {
+    $(document).on('click', '.pagination_holder .load_page', function (e) {
         e.preventDefault();
 
-        loadmore_params.current_page = 1;
+        var holder = $(this).closest('.ajax_row_holder')[0];
+        if (!holder) {
+            return;
+        }
 
-        all_param();
+        var inst = instances.get(holder);
+        if (!inst) {
+            return;
+        }
 
-        $.ajax({
-            url: loadmore_params.ajaxurl,
-            data: data,
-            type: "POST",
-            beforeSend: function (xhr) {
-                ajax_row_holder.css("opacity", "0.5");
-            },
-            success: function (data) {
-                if (data) {
-                    this_load_more.remove();
-                    row_items.empty();
-                    if (data.html !== "") {
-                        row_items.append(data.html);
-                    } else {
-                        row_items.append(
-                            '<div class="no-results-found">no results found</div>',
-                        );
-                    }
-                    ajax_row_holder.append(data.pagination);
-                    ajax_row_holder.css("opacity", "1");
-                    if (!initLoad) {
-                        const url = new URL(window.location.href);
-                        url.pathname = data.base_url;
-                        url.search = URLArray;
-                        window.history.pushState(null, null, url);
-                    }
-                    initLoad = false;
-                }
-            },
-        }).done(function () {
-            $(document).trigger("AjaxFilterDone");
-        });
+        inst.paginate($(this));
     });
-
-    $select.each(function (index) {
-        let taxonomy = $(this).attr("data-taxonomy");
-        if (urlParams.has(taxonomy)) {
-            $(this).val(urlParams.get(taxonomy));
-            filterCheck = true;
-        }
-        if (index === totalSelect - 1 && filterCheck) {
-            $form.trigger("submit");
-        }
-    });
-
-    $button.each(function (index) {
-        if (!$(this).hasClass("allCategories")) {
-            let $this = $(this);
-            let taxonomy = $this.attr("data-taxonomy");
-            let slug = $this.attr("data-slug");
-
-            if (urlParams.has(taxonomy)) {
-                let array = urlParams.get(taxonomy).split(",");
-
-                $.each(array, function (i, v) {
-                    if (v === slug) {
-                        $this.addClass("active");
-                        $(".allCategories").removeClass("active");
-                        filterCheck = true;
-                    }
-                });
-            }
-        }
-        if (index === totalButton - 1 && filterCheck) {
-            initLoad = true;
-            $form.trigger("submit");
-        }
-    });
-
-    if (!filterCheck && searchCheck) {
-        $form.trigger("submit");
-    }
 });
