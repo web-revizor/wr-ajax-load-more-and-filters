@@ -8,7 +8,8 @@ const defaultMain: MainSettings = {
     loadMoreLabel: '',
     prevText: '',
     nextText: '',
-    updateUrl: true,
+    syncFiltersUrl: true,
+    syncPaginationUrl: true,
 };
 
 const defaultClasses: ClassSettings = {
@@ -73,8 +74,11 @@ export function useShortcodeBuilder() {
         sc += attr('load_more_classes', classes.loadMoreClasses);
         sc += attr('prev_text', main.prevText);
         sc += attr('next_text', main.nextText);
-        if (!main.updateUrl) {
-            sc += ' update_url="false"';
+        if (!main.syncFiltersUrl) {
+            sc += ' sync_filters_url="false"';
+        }
+        if (!main.syncPaginationUrl) {
+            sc += ' sync_pagination_url="false"';
         }
         if (hasFilters) {
             sc += attr('filter_id', filterId);

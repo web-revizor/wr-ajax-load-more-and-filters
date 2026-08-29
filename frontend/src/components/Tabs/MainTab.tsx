@@ -96,11 +96,22 @@ export function MainTab({ postTypes, main, setMain }: Props) {
       <Toggle
         size='small'
         label='Sync filters to URL'
-        value={main.updateUrl}
-        onChange={(v) => update('updateUrl', v)}
+        value={main.syncFiltersUrl}
+        onChange={(v) => update('syncFiltersUrl', v)}
       />
       <p className='text-[12px] text-white/60'>
-        Off = no address-bar changes, pagination links are inert anchors.
+        Off = filtering / search / sorting never touch the address bar.
+      </p>
+
+      <Toggle
+        size='small'
+        label='Sync pagination to URL'
+        value={main.syncPaginationUrl}
+        onChange={(v) => update('syncPaginationUrl', v)}
+      />
+      <p className='text-[12px] text-white/60'>
+        Off = pagination links become inert anchors and the address bar keeps
+        no page number.
       </p>
     </div>
   );

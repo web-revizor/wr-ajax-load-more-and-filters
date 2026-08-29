@@ -113,8 +113,6 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
         $filter_expand_class = $load_more_variables['filter_expand_class'];
         $limit               = (int) ( $load_more_variables['filter_item_limit'] ?? 0 );
         $printed             = 0;
-        $queried             = get_queried_object();
-        $exclude_term_id     = ( $queried instanceof WP_Term ) ? (int) $queried->term_id : 0;
         ?>
         <div class="<?= esc_attr($load_more_variables['filter_row_classes']) ?>">
             <?php $categoriesArray = explode(',', $load_more_variables['filter_taxonomy']) ?>
@@ -132,7 +130,6 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
                     $roots    = get_terms( array(
                         'taxonomy'   => $taxonomy,
                         'parent'     => 0,
-                        'exclude'    => $exclude_term_id,
                         'hide_empty' => true,
                     ) );
                     $roots = is_array( $roots ) ? $roots : array();

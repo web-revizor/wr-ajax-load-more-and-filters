@@ -7,6 +7,10 @@
  * `[all_posts_ajax_filters]` pairs can live on the same page without
  * interfering with each other.
  *
+ * URL sync is fully two-way: every filter / search / sort / pagination action
+ * pushes the server-built `canonical_url`, and Back / Forward (`popstate`) plus
+ * the initial load restore the panel + page straight from the address bar.
+ *
  * jQuery is a WordPress global; this file is bundled as a plain IIFE.
  */
 jQuery(function ($) {
@@ -14,7 +18,7 @@ jQuery(function ($) {
 
     var params = window.loadmore_params || {};
 
-    // holder element -> Instance, used by the delegated pagination handler.
+    // holder element -> Instance, used by the delegated pagination + popstate handlers.
     var instances = new Map();
 
     var NO_RESULTS = '<div class="no-results-found">no results found</div>';
@@ -28,17 +32,28 @@ jQuery(function ($) {
      * shared by two lists does not toggle the same button twice.
      * ------------------------------------------------------------------ */
 
-    function toggleFilterButton($buttons, $btn) {
+    function toggleFilterButton($panel, $btn) {
+        var $buttons = $panel.find('.js-category-filter');
+
         if ($btn.hasClass('allCategories')) {
-            if ($btn.hasClass('active')) {
-                $btn.removeClass('active');
-            }
+            // "All" clears only the category filters (buttons + selects) — never
+            // the search field or the sort selects. Its own submit re-queries.
+            $buttons.removeClass('active');
+            $btn.addClass('active');
+            $panel.find('.js-category-filter-select').prop('selectedIndex', 0);
             return;
         }
 
         if ($btn.hasClass('multiply-false')) {
-            $buttons.removeClass('active');
-            $btn.addClass('active');
+            // Single-select: clicking the active term turns it off and restores
+            // "All"; clicking another term replaces the selection.
+            if ($btn.hasClass('active')) {
+                $btn.removeClass('active');
+                $buttons.filter('.allCategories').addClass('active');
+            } else {
+                $buttons.removeClass('active');
+                $btn.addClass('active');
+            }
             return;
         }
 
@@ -63,22 +78,20 @@ jQuery(function ($) {
             $panel.data('wralmBound', true);
 
             $panel.on('click', '.js-category-filter', function () {
-                toggleFilterButton($panel.find('.js-category-filter'), $(this));
+                toggleFilterButton($panel, $(this));
             });
 
             $panel.on('click', '.js-clear-filter', function () {
-                $panel.find('.js-category-filter').removeClass('active');
+                var $buttons = $panel.find('.js-category-filter');
+                $buttons.removeClass('active');
+                $buttons.filter('.allCategories').addClass('active');
                 $panel.find('.all-post-search').val('');
                 $panel.find('.js-category-filter-select').prop('selectedIndex', 0);
             });
 
-            $panel.on(
-                'change',
-                '.js-category-filter-select',
-                function () {
-                    $panel.find('.all_posts_form').trigger('submit');
-                }
-            );
+            $panel.on('change', '.js-category-filter-select', function () {
+                $panel.find('.all_posts_form').trigger('submit');
+            });
         });
     }
 
@@ -104,11 +117,12 @@ jQuery(function ($) {
         this.$form = this.$filters.find('.all_posts_form');
         this.$search = this.$filters.find('.all-post-search');
         this.$order = this.$filters.find('.js-post-order');
-        this.$orderby = this.$filters.find('.js-post-orderby'); // Phase 8
+        this.$orderby = this.$filters.find('.js-post-orderby');
         this.$buttons = this.$filters.find('.js-category-filter');
         this.$selects = this.$filters.find('.js-category-filter-select');
 
-        this.updateUrl = String(this.$row.data('update-url')) !== 'false';
+        this.syncFiltersUrl = String(this.$row.data('sync-filters-url')) !== 'false';
+        this.syncPaginationUrl = String(this.$row.data('sync-pagination-url')) !== 'false';
         this.archiveContext = String(this.$row.data('archive-context')) === 'true';
         this.initPage = parseInt($holder.data('init-page'), 10) || 1;
 
@@ -140,6 +154,18 @@ jQuery(function ($) {
             return this.$orderby.val();
         }
         return this.rowAttr('orderby') || 'date';
+    };
+
+    /** The set of taxonomy slugs this panel knows about (buttons + selects). */
+    Instance.prototype.knownTaxonomies = function () {
+        var taxonomies = {};
+        this.$buttons.add(this.$selects).each(function () {
+            var t = $(this).attr('data-taxonomy');
+            if (t) {
+                taxonomies[t] = true;
+            }
+        });
+        return taxonomies;
     };
 
     /** { taxonomy: [slug, ...] } from the active buttons + non-empty selects. */
@@ -175,31 +201,73 @@ jQuery(function ($) {
         return category;
     };
 
-    /**
-     * The ONE url pushed for an action: current pathname plus the serialized
-     * filter/search state, or the bare pathname when nothing is filtered.
-     */
-    Instance.prototype.buildUrl = function (category) {
-        var parts = [];
-        var search = this.searchTerm();
+    /* ---------------------------------------------------------------- *
+     * URL <-> state
+     * ---------------------------------------------------------------- */
 
-        $.each(category, function (taxonomy, slugs) {
-            parts.push(
-                encodeURIComponent(taxonomy) + '=' +
-                $.map([].concat(slugs), encodeURIComponent).join(',')
-            );
-        });
+    /** Read { category, search, page } out of the current address bar. */
+    Instance.prototype.readUrlState = function () {
+        var urlParams = new URLSearchParams(window.location.search);
+        var state = { category: {}, search: '', page: 1 };
 
-        if (search !== '') {
-            parts.push('filter_search=' + encodeURIComponent(search));
+        if (urlParams.has('filter_search')) {
+            state.search = urlParams.get('filter_search');
         }
 
-        return parts.length
-            ? window.location.pathname + '?' + parts.join('&')
-            : window.location.pathname;
+        var taxonomies = this.knownTaxonomies();
+        Object.keys(taxonomies).forEach(function (t) {
+            if (urlParams.has(t)) {
+                var slugs = urlParams.get(t).split(',').filter(Boolean);
+                if (slugs.length) {
+                    state.category[t] = slugs;
+                }
+            }
+        });
+
+        var pretty = window.location.pathname.match(/\/page\/(\d+)\/?$/);
+        if (pretty) {
+            state.page = parseInt(pretty[1], 10) || 1;
+        } else if (urlParams.has('paged')) {
+            state.page = parseInt(urlParams.get('paged'), 10) || 1;
+        } else if (urlParams.has('page')) {
+            state.page = parseInt(urlParams.get('page'), 10) || 1;
+        }
+
+        return state;
     };
 
-    /** POST body for admin-ajax `loadmore`. No `query` key (Task 5.2). */
+    /** Force the panel DOM (buttons / selects / search) to match `state`. */
+    Instance.prototype.applyUrlState = function (state) {
+        if (this.$search.length) {
+            this.$search.val(state.search || '');
+        }
+
+        this.$buttons.each(function () {
+            var $btn = $(this);
+            if ($btn.hasClass('allCategories')) {
+                return;
+            }
+            var t = $btn.attr('data-taxonomy');
+            var slug = $btn.attr('data-slug');
+            var on = !!(t && state.category[t] && $.inArray(slug, state.category[t]) !== -1);
+            $btn.toggleClass('active', on);
+        });
+
+        var anyActive = this.$buttons.filter('.active').not('.allCategories').length > 0;
+        this.$buttons.filter('.allCategories').toggleClass('active', !anyActive);
+
+        this.$selects.each(function () {
+            var t = $(this).attr('data-taxonomy');
+            var vals = (t && state.category[t]) || [];
+            $(this).val(this.multiple ? vals : (vals[0] || ''));
+        });
+    };
+
+    /* ---------------------------------------------------------------- *
+     * Requests
+     * ---------------------------------------------------------------- */
+
+    /** POST body for admin-ajax `loadmore`. */
     Instance.prototype.buildData = function (category) {
         return {
             action: 'loadmore',
@@ -219,14 +287,17 @@ jQuery(function ($) {
             prev_text: this.rowAttr('prev-text'),
             next_text: this.rowAttr('next-text'),
             filter_id: this.filterId,
-            update_url: this.updateUrl ? 'true' : 'false',
+            sync_filters_url: this.syncFiltersUrl ? 'true' : 'false',
+            sync_pagination_url: this.syncPaginationUrl ? 'true' : 'false',
             archive_context: this.archiveContext ? 'true' : 'false',
+            // Raw current URL; the server strips any /page/N/ or ?paged=N itself.
             base_url: window.location.pathname + window.location.search
         };
     };
 
     /**
-     * opts: { page, clearRow, pushUrl, emptyHtml, event }
+     * opts: { page, clearRow, push, emptyHtml, event }
+     *   push — true to write `res.canonical_url` into the address bar.
      */
     Instance.prototype.request = function (opts) {
         var self = this;
@@ -238,15 +309,8 @@ jQuery(function ($) {
 
         this.page = parseInt(opts.page, 10) || 1;
 
-        var category = this.collectCategories();
-        var url = this.buildUrl(category); // absolute-path URL this action navigates to
-        var data = this.buildData(category);
-        if (this.updateUrl) {
-            // send the POST-action URL so the response's pagination hrefs embed
-            // the NEW filter state, not the pre-action one.
-            data.base_url = url;
-        }
-        var pushUrl = this.updateUrl && opts.pushUrl ? url : null;
+        var data = this.buildData(this.collectCategories());
+        var push = !!opts.push;
 
         this.$holder.css('opacity', '0.5');
 
@@ -269,13 +333,12 @@ jQuery(function ($) {
                 if (res.pagination) {
                     self.$holder.append(res.pagination);
                 }
+                if (push && res.canonical_url) {
+                    window.history.pushState(null, '', res.canonical_url);
+                }
             }
 
             self.$holder.css('opacity', '1');
-
-            if (pushUrl) {
-                window.history.pushState(null, '', pushUrl);
-            }
 
             $(document).trigger(opts.event);
             self.$holder.trigger(opts.event);
@@ -289,20 +352,24 @@ jQuery(function ($) {
     };
 
     Instance.prototype.paginate = function ($link) {
+        var isLoadMore = $link.hasClass('load_more');
         this.request({
             page: parseInt($link.attr('data-page'), 10) || 1,
-            clearRow: !$link.hasClass('load_more'),
-            pushUrl: true,
+            clearRow: !isLoadMore,
+            // "Show more" accumulates pages; syncing ?paged=N there would make a
+            // reload render only the last page. Numbered / prev / next sync.
+            push: !isLoadMore && this.syncPaginationUrl,
             emptyHtml: '',
             event: 'AjaxPaginationDone'
         });
     };
 
-    Instance.prototype.filter = function (page, pushUrl) {
+    /** A filter / search / sort change: always resets to page 1. */
+    Instance.prototype.filter = function (push) {
         this.request({
-            page: parseInt(page, 10) || 1,
+            page: 1,
             clearRow: true,
-            pushUrl: pushUrl,
+            push: push && this.syncFiltersUrl,
             emptyHtml: NO_RESULTS,
             event: 'AjaxFilterDone'
         });
@@ -313,67 +380,55 @@ jQuery(function ($) {
 
         this.$form.on('submit', function (e) {
             e.preventDefault();
-            self.filter(1, true);
+            self.filter(true);
         });
 
         // Order / order-by selects drive a re-query directly. An
         // `enable_order="true"`-only panel renders no <form>, so routing this
         // through the form's submit would be a dead end there.
         this.$order.add(this.$orderby).on('change', function () {
-            self.filter(1, true);
+            self.filter(true);
         });
     };
 
     /**
-     * Restore filter/search state from the URL, then fire ONE request for it.
-     * Filter state restored from the URL keeps the server-rendered page
-     * (`data-init-page`); a search-only URL starts at page 1.
+     * Initial load: restore the panel + page from the address bar and, when the
+     * URL carries filter / search / a different page than the server rendered,
+     * fire one request for it (no push — the URL is already right).
      */
     Instance.prototype.restoreFromUrl = function () {
-        var urlParams = new URLSearchParams(window.location.search);
-        var restoredFilter = false;
-        var restoredSearch = false;
+        var state = this.readUrlState();
+        this.applyUrlState(state);
 
-        if (urlParams.has('filter_search') && this.$search.length) {
-            this.$search.val(urlParams.get('filter_search'));
-            restoredSearch = true;
-        }
+        var hasFilter = Object.keys(state.category).length > 0;
+        var hasSearch = state.search !== '';
 
-        this.$selects.each(function () {
-            var taxonomy = $(this).attr('data-taxonomy');
-            if (!taxonomy || !urlParams.has(taxonomy)) {
-                return;
-            }
-            var values = urlParams.get(taxonomy).split(',');
-            $(this).val(this.multiple ? values : values[0]);
-            restoredFilter = true;
-        });
-
-        this.$buttons.each(function () {
-            var $btn = $(this);
-            if ($btn.hasClass('allCategories')) {
-                return;
-            }
-            var taxonomy = $btn.attr('data-taxonomy');
-            if (!taxonomy || !urlParams.has(taxonomy)) {
-                return;
-            }
-            if ($.inArray($btn.attr('data-slug'), urlParams.get(taxonomy).split(',')) !== -1) {
-                $btn.addClass('active');
-                restoredFilter = true;
-            }
-        });
-
-        if (restoredFilter) {
-            this.$buttons.filter('.allCategories').removeClass('active');
-            this.filter(this.initPage, false);
-        } else if (restoredSearch) {
-            this.filter(1, false);
+        if (hasFilter || hasSearch || state.page !== this.initPage) {
+            this.request({
+                page: state.page,
+                clearRow: true,
+                push: false,
+                emptyHtml: NO_RESULTS,
+                event: 'AjaxFilterDone'
+            });
         }
     };
 
+    /** Back / Forward: re-render to match whatever the URL now says. */
+    Instance.prototype.onPopState = function () {
+        var state = this.readUrlState();
+        this.applyUrlState(state);
+        this.request({
+            page: state.page,
+            clearRow: true,
+            push: false,
+            emptyHtml: NO_RESULTS,
+            event: 'AjaxFilterDone'
+        });
+    };
+
     /* ------------------------------------------------------------------ *
-     * Boot + delegated pagination routing
+     * Boot + delegated routing
      * ------------------------------------------------------------------ */
 
     $('.ajax_row_holder').each(function () {
@@ -389,10 +444,14 @@ jQuery(function ($) {
         }
 
         var inst = instances.get(holder);
-        if (!inst) {
-            return;
+        if (inst) {
+            inst.paginate($(this));
         }
+    });
 
-        inst.paginate($(this));
+    $(window).on('popstate', function () {
+        instances.forEach(function (inst) {
+            inst.onPopState();
+        });
     });
 });

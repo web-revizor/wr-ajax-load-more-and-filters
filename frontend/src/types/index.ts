@@ -8,7 +8,8 @@ export interface MainSettings {
   loadMoreLabel: string;
   prevText: string;
   nextText: string;
-  updateUrl: boolean;
+  syncFiltersUrl: boolean;
+  syncPaginationUrl: boolean;
 }
 
 export interface ClassSettings {
