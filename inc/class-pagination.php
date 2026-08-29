@@ -10,24 +10,70 @@ if (!defined('ABSPATH')) {
  */
 class WRALM_Pagination
 {
+    /**
+     * Compute the paginate_links() base + format for a given context.
+     * Pretty /page/N/ URLs are only emitted on archive-ish pages AND when
+     * update_url is on; everywhere else fall back to ?paged=N so the plugin
+     * never produces a broken /page/N/ link on a static page.
+     *
+     * @return array [ $base, $format ]
+     */
+    public static function resolve_base($update_url, $archive_context, $url)
+    {
+        global $wp_rewrite;
+
+        $url = html_entity_decode($url);
+        $path = strtok($url, '?');
+        $base = trailingslashit($path) . '%_%';
+
+        $pretty = $update_url && $archive_context && $wp_rewrite->using_permalinks();
+
+        if ($pretty) {
+            $format = $wp_rewrite->using_index_permalinks() && false === strpos($base, 'index.php') ? 'index.php/' : '';
+            $format .= user_trailingslashit($wp_rewrite->pagination_base . '/%#%', 'paged');
+        } else {
+            $format = '?paged=%#%';
+        }
+
+        return array($base, $format);
+    }
+
+    private static function href($link, $update_url)
+    {
+        return $update_url ? esc_url(apply_filters('paginate_links', $link)) : '#';
+    }
+
     public static function links($args = '')
     {
         global $wp_rewrite;
 
-        // Setting up default values based on the current URL.
-        $pagenum_link = html_entity_decode(get_pagenum_link());
-        $url_parts = explode('?', $pagenum_link);
+        // When the caller supplies base + format + total + current, work purely
+        // from $args and never touch WP globals / the current query.
+        $has_explicit = is_array($args)
+            && isset($args['base'], $args['format'], $args['total'], $args['current']);
 
-        // Get max pages and current page out of the current query, if available.
-        $total = isset($GLOBALS['wp_query']->max_num_pages) ? $GLOBALS['wp_query']->max_num_pages : 1;
-        $current = get_query_var('paged') ? (int)get_query_var('paged') : 1;
+        if ($has_explicit) {
+            $url_parts = array(strtok((string)$args['base'], '?'));
+            $pagenum_link = $args['base'];
+            $format = $args['format'];
+            $total = (int)$args['total'];
+            $current = (int)$args['current'];
+        } else {
+            // Setting up default values based on the current URL.
+            $pagenum_link = html_entity_decode(get_pagenum_link());
+            $url_parts = explode('?', $pagenum_link);
 
-        // Append the format placeholder to the base URL.
-        $pagenum_link = trailingslashit($url_parts[0]) . '%_%';
+            // Get max pages and current page out of the current query, if available.
+            $total = isset($GLOBALS['wp_query']->max_num_pages) ? $GLOBALS['wp_query']->max_num_pages : 1;
+            $current = get_query_var('paged') ? (int)get_query_var('paged') : 1;
 
-        // URL base depends on permalink settings.
-        $format = $wp_rewrite->using_index_permalinks() && !strpos($pagenum_link, 'index.php') ? 'index.php/' : '';
-        $format .= $wp_rewrite->using_permalinks() ? user_trailingslashit($wp_rewrite->pagination_base . '/%#%', 'paged') : '?paged=%#%';
+            // Append the format placeholder to the base URL.
+            $pagenum_link = trailingslashit($url_parts[0]) . '%_%';
+
+            // URL base depends on permalink settings.
+            $format = $wp_rewrite->using_index_permalinks() && !strpos($pagenum_link, 'index.php') ? 'index.php/' : '';
+            $format .= $wp_rewrite->using_permalinks() ? user_trailingslashit($wp_rewrite->pagination_base . '/%#%', 'paged') : '?paged=%#%';
+        }
 
         $defaults = array(
             'base' => $pagenum_link,
@@ -48,6 +94,7 @@ class WRALM_Pagination
             'after_page_number' => '',
             'load_more_classes' => '',
             'load_more_label' => __('Show more', 'wr-ajax-load-more-and-filters'),
+            'update_url' => true,
         );
 
         $args = wp_parse_args($args, $defaults);
@@ -96,7 +143,7 @@ class WRALM_Pagination
             $link .= $args['add_fragment'];
             $page_links[] = sprintf(
                 '<a class="prev load_page" href="%s" data-page="%s">%s</a>',
-                esc_url(apply_filters('paginate_links', $link)),
+                self::href($link, $args['update_url']),
                 number_format_i18n($current - 1),
                 $args['prev_text']
             );
@@ -122,7 +169,7 @@ class WRALM_Pagination
                     $link .= $args['add_fragment'];
                     $page_links[] = sprintf(
                         '<a class="page-numbers load_page" href="%s" data-page="%s">%s</a>',
-                        esc_url(apply_filters('paginate_links', $link)),
+                        self::href($link, $args['update_url']),
                         number_format_i18n($n),
                         $args['before_page_number'] . number_format_i18n($n) . $args['after_page_number']
                     );
@@ -143,14 +190,14 @@ class WRALM_Pagination
             $link .= $args['add_fragment'];
             $page_links[] = sprintf(
                 '<a class="next load_page" href="%s" data-page="%s">%s</a>',
-                esc_url(apply_filters('paginate_links', $link)),
+                self::href($link, $args['update_url']),
                 number_format_i18n($current + 1),
                 $args['next_text']
             );
             $page_links_more[] = sprintf(
                 '<a class="load_page load_more %s" href="%s" data-page="%s">%s</a>',
                 esc_attr($args['load_more_classes']),
-                esc_url(apply_filters('paginate_links', $link)),
+                self::href($link, $args['update_url']),
                 number_format_i18n($current + 1),
                 $args['load_more_label']
             );
