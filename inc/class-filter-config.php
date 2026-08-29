@@ -175,4 +175,76 @@ class WRALM_Filter_Config {
 
         return $count;
     }
+
+    /**
+     * Per-term visible post counts for $taxonomy: [ term_id => count ], where
+     * count applies the SAME exclusions as the list itself ("Hide from list"
+     * meta + WooCommerce catalog/stock visibility) and, like the filter query,
+     * includes child-term posts. So a button's number matches what clicking it
+     * actually shows. Cached in a 5-minute transient per (post_type, taxonomy).
+     */
+    public static function term_visible_counts( $post_type, $taxonomy ) {
+        $post_type = sanitize_key( $post_type );
+        $taxonomy  = sanitize_key( $taxonomy );
+        if ( '' === $post_type || '' === $taxonomy
+            || ! post_type_exists( $post_type ) || ! taxonomy_exists( $taxonomy ) ) {
+            return array();
+        }
+
+        $cache_key = 'wralm_tcounts_' . $post_type . '_' . $taxonomy;
+        $cached    = get_transient( $cache_key );
+        if ( is_array( $cached ) ) {
+            return $cached;
+        }
+
+        $terms = get_terms( array(
+            'taxonomy'   => $taxonomy,
+            'hide_empty' => false,
+        ) );
+        if ( ! is_array( $terms ) ) {
+            $terms = array();
+        }
+
+        $meta_query = array(
+            'relation' => 'OR',
+            array( 'key' => 'all_posts_ajax_hide', 'value' => '1', 'compare' => '!=' ),
+            array( 'key' => 'all_posts_ajax_hide', 'compare' => 'NOT EXISTS' ),
+        );
+        $woo_vis = ( class_exists( 'WRALM_Woo' ) && WRALM_Woo::is_product_query( $post_type ) )
+            ? WRALM_Woo::visibility_tax_query()
+            : array();
+
+        $counts = array();
+        foreach ( $terms as $term ) {
+            $tax_query = array(
+                array(
+                    'taxonomy' => $taxonomy,
+                    'field'    => 'term_id',
+                    'terms'    => array( (int) $term->term_id ),
+                ),
+            );
+            if ( $woo_vis ) {
+                $tax_query[] = $woo_vis;
+            }
+
+            $q = new WP_Query( array(
+                'post_type'              => $post_type,
+                'post_status'            => 'publish',
+                'posts_per_page'         => 1,
+                'fields'                 => 'ids',
+                'no_found_rows'          => false,
+                'ignore_sticky_posts'    => true,
+                'update_post_meta_cache' => false,
+                'update_post_term_cache' => false,
+                'meta_query'             => $meta_query,
+                'tax_query'              => $tax_query,
+            ) );
+
+            $counts[ (int) $term->term_id ] = (int) $q->found_posts;
+        }
+
+        set_transient( $cache_key, $counts, 5 * MINUTE_IN_SECONDS );
+
+        return $counts;
+    }
 }
