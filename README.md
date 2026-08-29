@@ -1,315 +1,223 @@
 # Web Revizor: Ajax Load More & Filters
 
-## WordPress plugin
+WordPress plugin that adds shortcodes for AJAX pagination, taxonomy filtering,
+search (with ACF support) and sorting of post lists. No page reload; state is
+reflected in the address bar so filtered and paginated views are shareable.
 
-Easy load more, filter and searching
+- [Releases](https://github.com/web-revizor/ajax-load-more-and-filters/releases)
 
-[Download](https://github.com/web-revizor/ajax-load-more-and-filters/releases)
+## Requirements
 
-### Admin console
+- WordPress 5.5+
+- PHP 7.4+
+- Advanced Custom Fields — optional, only for searching inside ACF field values
+- WooCommerce — optional, enables product-aware behaviour (see below)
 
-The shortcode-builder screen (**WR Ajax Load More** in the admin menu) is a
-small React app — see `frontend/` for its source and `frontend/AGENTS.md`
-for how to work on it. Run `yarn install && yarn build` inside
-`frontend/` after any change there to regenerate `dist/app.js` and
-`dist/style.css`, which is what the plugin actually loads.
+## Features
 
-The front-end load-more/filter script (`dist/js/load_more_and_filter.js`)
-is built by a separate, plain Vite config at the plugin root (`vite.config.js`) —
-run `yarn install && yarn build` from the plugin root after changing
-`src/js/load_more_and_filter.js`.
+- Two shortcodes: a list with pagination, and a filter/search/sort panel that
+  drives it.
+- Pagination styles: numbered list, "Show more" button, both, or none.
+- Taxonomy filters as buttons or dropdowns, single- or multi-select, with
+  optional per-term post counts.
+- Search that can also match ACF field values, comment text and taxonomy term
+  names (configurable).
+- Two-way URL sync: filtering, sorting and pagination update the URL; Back /
+  Forward and direct links restore the exact view.
+- Cacheable REST endpoint (`GET /wp-json/wralm/v1/list`) with a per-IP rate
+  limit.
+- Multiple independent list + panel pairs on one page.
 
-### Local package
+## Installation
 
-`yarn package` (or `yarn package:fast` to skip `yarn install`) runs
-`build.ps1`: it builds both bundles and produces `<slug>_<version>.zip`
-in the repo root, mirroring the CI workflow — the exclude list is parsed
-straight out of `.github/workflows/build.yml`, the slug comes from
-`gh repo view`, and the version from the plugin header. On push to
-`main`, CI does the same and publishes it as a GitHub Release `v<version>`.
+1. Download the plugin zip from the releases page (or build it, see
+   [Development](#development)).
+2. Upload it in *Plugins → Add New → Upload Plugin*, or extract it into
+   `wp-content/plugins/`.
+3. Activate it.
+4. Add a `{post_type}-card.php` template to your theme (see
+   [Theme integration](#theme-integration)).
 
-### Pagination:
+## Quick start
 
-- List
-- Button
-- Both
-- None
+```
+[all_posts_ajax_filters post_type="post" filter_by_category="true" enable_search="true"]
+[all_posts_ajax post_type="post" posts_per_page="10" type_pagination="list"]
+```
 
-### Default Shortcode
+The panel and the list are linked by `filter_id` (default `<post_type>_filter`),
+so a bare pair like the one above works without setting it explicitly. The admin
+screen *WR Ajax Load More* generates both shortcode strings for you.
 
-````
-[all_posts_ajax post_type="post" posts_per_page="10" type_pagination="default"]
-````
+## Shortcodes
 
-### Shortcode Parameters (generate in admin panel)
+### `[all_posts_ajax]` — the list and its pagination
 
-#### `[all_posts_ajax]` (the list + pagination)
+| Attribute | Default | Description |
+|---|---|---|
+| `post_type` | `post` | Post type to list. |
+| `posts_per_page` | `10` | Number of posts per page. `-1` for all. Ignored for `product` (see [WooCommerce](#woocommerce)). |
+| `type_pagination` | `default` | `list`, `both`, `default` (Show more button), or `none`. |
+| `row_classes` | `posts_row` | Extra classes on the list container. |
+| `load_more_label` | `Show more` | "Show more" button text. |
+| `load_more_classes` | `load_more_button` | Extra classes on the "Show more" button. |
+| `prev_text` / `next_text` | `Previous` / `Next` | Prev/next link text. |
+| `orderby` | `date` | Initial sort key. One of `date`, `title`, `menu_order`, `rand`, `modified`, `comment_count`, plus `price`, `popularity`, `rating` for WooCommerce products. Runtime sorting is driven by the panel, not this attribute. |
+| `sync_filters_url` | `true` | Write filter/search/sort state to the URL (`filter_<taxonomy>=slug`, `filter_search`). `false` keeps that state in memory only. |
+| `sync_pagination_url` | `true` | Give pagination links real `href`s and push the page into the URL. Pretty `/page/N/` is used only on archive/home/taxonomy contexts with pretty permalinks; elsewhere `?paged=N`. `false` makes hrefs `#`. The "Show more" button never syncs the URL. |
+| `filter_id` | `<post_type>_filter` | Links this list to the panel with the same value. |
 
-- post_type: post type name
-- posts_per_page: number, can be "-1" for infinity posts on page
-- type_pagination: list/both/default/none
-- row_classes: string
-- load_more_label: string
-- load_more_classes: string
-- prev_text: string
-- next_text: string
-- orderby: initial sort key for the list. Whitelist:
-  `date,title,menu_order,rand,modified,comment_count` plus the WooCommerce keys
-  `price,popularity,rating` (default `date`). Sanitised by `from_atts`, emitted
-  as `data-orderby` and read by the JS `orderbyValue()` as the fallback when the
-  filter panel's order `<select>` has no value. The filter panel's
-  `order_by_options` still drives the runtime sort dropdown; `orderby` only sets
-  the starting value for the list itself.
-- sync_filters_url: `"true"` | `"false"` (default `"true"`). When `"true"`,
-  filtering / search / sorting write the current filter state to the address bar
-  via `history.pushState` (params `filter_<taxonomy>=slug`, `filter_search`). When
-  `"false"`, those actions never touch the URL — filter state is in-memory only.
-- sync_pagination_url: `"true"` | `"false"` (default `"true"`). When `"true"`,
-  pagination `<a>` elements carry real `href`s and clicking a numbered / prev /
-  next link pushes that URL into the address bar. Pretty `/page/N/` URLs are
-  emitted **only** on archive / home / taxonomy contexts (and only with pretty
-  permalinks); everywhere else — static pages, the front page — links are
-  `?paged=N`, which fixes the broken `/page/N/` links WordPress used to 404 on
-  static pages. When `"false"`, pagination hrefs are `#` (navigation driven purely
-  by `data-page`) and no `history.pushState` happens. The "Show more" button
-  never syncs the URL regardless (it accumulates pages; a reload would render
-  only the last one).
-- update_url: **deprecated** alias. When set and neither `sync_filters_url` nor
-  `sync_pagination_url` is given, it applies to both (so a pre-1.5.1
-  `update_url="false"` keeps its old meaning). An explicit `sync_*` attribute
-  always wins.
+### `[all_posts_ajax_filters]` — the filter / search / sort panel
 
-Note: `orderby` on `[all_posts_ajax]` only sets the **initial** sort of the
-list. At runtime the sort is driven by the **filters** shortcode — the Newest /
-Oldest direction select and the `order_by_options` select both post their value
-into the same list query.
-
-#### `[all_posts_ajax_filters]` (the filter / search / order panel)
-
-- filter_by_category: boolean
-- filter_row_classes: string
-- filter_item_classes: string
-- filter_item_limit: number
-- filter_expand_label: string
-- filter_expand_class: string (default `filter_expand` — see breaking changes)
-- filter_taxonomy: comma separated string with taxonomy name
-- multiply_filter: boolean
-- enable_clear_button: boolean
-- filter_type: button/select
-- filter_titles: boolean
-- all_category_button: string
-- show_filter_count: `"true"` | `"false"` (default `"true"`). `"false"` drops the
-  `<span class="postCount">` from every filter button (and the "All" button),
-  and skips the per-term count queries entirely. Button mode only.
-- enable_search: boolean
-- label_search_button: string
-- search_placeholder: string
-- enable_order: boolean
-- label_newest_order: string
-- label_old_order: string
-- order_by_options: comma-separated subset of
-  `date,title,menu_order,rand,price,popularity,rating`. When empty, only the
-  Newest / Oldest direction `<select>` renders. When set, a second `<select>`
-  renders offering those sort keys. `price` / `popularity` / `rating` are only
-  meaningful for `post_type="product"` with WooCommerce active (see WooCommerce
-  section); for other post types they fall back to a sensible default.
-- order_by_labels: comma-separated list, positionally parallel to
-  `order_by_options`, giving the visible label for each option. A missing entry
-  falls back to a prettified version of the key.
+| Attribute | Default | Description |
+|---|---|---|
+| `post_type` | `post` | Must match the list. |
+| `filter_by_category` | `false` | Render taxonomy filters. |
+| `filter_taxonomy` | `category` | Comma-separated taxonomy names. |
+| `filter_type` | `button` | `button` or `select`. |
+| `multiply_filter` | `false` | `true` allows selecting several terms at once. |
+| `filter_titles` | `false` | Print a heading before each taxonomy's terms. |
+| `filter_item_limit` | `0` | Show only the first N term buttons, with an expand toggle. `0` = no limit. |
+| `filter_expand_label` | `See all` | Expand toggle text. |
+| `filter_expand_class` | `filter_expand` | Expand toggle class. |
+| `filter_row_classes` | `filter_row` | Class on the filter row container. |
+| `filter_item_classes` | `filter_item` | Class on each filter control. |
+| `all_category_button` | `All` | Label of the reset ("All") button. |
+| `show_filter_count` | `true` | Show the post count on each button. `false` removes every `<span class="postCount">` and skips the count queries. Button mode only. |
+| `enable_clear_button` | `false` | Render a "Clear Filters" button that resets filters, search and selects. |
+| `enable_search` | `false` | Render a search field. |
+| `label_search_button` | `Search` | Search button text. |
+| `search_placeholder` | `Search` | Search field placeholder. |
+| `enable_order` | `false` | Render the Newest / Oldest direction select. |
+| `label_newest_order` / `label_old_order` | `Newest First` / `Old First` | Direction option labels. |
+| `order_by_options` | — | Comma-separated subset of `date,title,menu_order,rand,price,popularity,rating`. When set, a second select offers these sort keys. |
+| `order_by_labels` | — | Comma-separated labels, positionally parallel to `order_by_options`. Missing entries fall back to a prettified key. |
+| `filter_id` | `<post_type>_filter` | Links this panel to the list with the same value. |
 
 ## Multiple instances
 
-The two shortcodes are linked by the `filter_id` attribute (default
-`<post_type>_filter`). The admin console writes the same `filter_id` into both
-shortcodes it generates, so a `[all_posts_ajax_filters]` panel drives the
-`[all_posts_ajax]` list that carries the matching `filter_id`.
+To run several independent list + panel pairs on one page, give each pair its
+own distinct `filter_id`:
 
-To run **several independent list + filter pairs on one page**, give each pair
-its own **distinct** `filter_id`:
+```
+[all_posts_ajax_filters post_type="post"    filter_id="blog" filter_by_category="true"]
+[all_posts_ajax         post_type="post"    filter_id="blog" posts_per_page="6"]
 
-````
-[all_posts_ajax_filters post_type="post"    filter_id="blog"  filter_by_category="true"]
-[all_posts_ajax          post_type="post"    filter_id="blog"  posts_per_page="6"]
+[all_posts_ajax_filters post_type="product" filter_id="shop" filter_by_category="true"]
+[all_posts_ajax         post_type="product" filter_id="shop"]
+```
 
-[all_posts_ajax_filters post_type="product" filter_id="shop"  filter_by_category="true"]
-[all_posts_ajax          post_type="product" filter_id="shop"]
-````
+Each pair gets its own controller, scoped by `filter_id`, so the panels never
+cross-talk. Emitted element ids are instance-unique:
 
-(`posts_per_page` is omitted on the product list — it comes from the
-WooCommerce catalog settings, see the WooCommerce section.)
+- `all_posts_filter_<filter_id>` — the `<form>`
+- `all-post-search-<filter_id>` — the search `<input>`
+- `js-post-order-<filter_id>` — the direction `<select>`
 
-The public script instantiates one controller per `.ajax_row_holder` and scopes
-every selector by `filter_id`, so the panels never cross-talk. All emitted ids
-are now instance-unique:
+The pagination wrapper has no id; target it by `.pagination_holder`.
 
-- `all_posts_filter_<filter_id>` (the `<form>`)
-- `all-post-search-<filter_id>` (the search `<input>`)
-- `js-post-order-<filter_id>` (the direction `<select>`)
+**Limitation:** two instances that expose the *same* taxonomy share one
+`filter_<taxonomy>=` URL parameter, so both restore from it and both fire a
+request on load. Use different taxonomies, or `sync_filters_url="false"` on one,
+if that matters.
 
-The pagination wrapper `<div>` **no longer has an `id`** — target it by the
-class `.pagination_holder` (it still also carries `.load_more_holder`).
+## Search
+
+Post title and content are always searched. Everything else is opt-in from
+*WR Ajax Load More → Search*:
+
+- **ACF fields** — pick which fields (by name) the search looks inside. With
+  none selected the search never touches `wp_postmeta`.
+- **Comment text** and **taxonomy term names** — toggles, on by default.
+- **Max words per search** and **minimum word length** — bound how large a
+  search query can get.
+
+By default the ACF/comment/term extension applies only to this plugin's
+queries. `add_filter( 'wralm_extend_all_search', '__return_true' )` restores it
+for every front-end search.
+
+### Hide a post from the list
+
+Every public post type gets a *Hide from list* checkbox. Checked posts are
+excluded from both the initial render and AJAX pages.
 
 ## WooCommerce
 
 When `post_type="product"` and WooCommerce is active, `[all_posts_ajax]`:
 
-- Excludes catalog-hidden products automatically, and — when the store option
-  "Hide out of stock items from the catalog" is on — out-of-stock products too
-  (via the `product_visibility` taxonomy).
+- Excludes catalog-hidden products, and out-of-stock products when the store
+  option *Hide out of stock items from the catalog* is on.
 - Wraps the card loop in `wc_setup_loop()` / `wc_reset_loop()`, so
-  `wc_get_loop_prop()` and the `$product` global are available inside
+  `wc_get_loop_prop()` and the `$product` global work inside
   `all_posts_ajax/product-card.php`.
-- Makes `price` / `popularity` / `rating` real sort options — expose them
-  through the Order tab (`order_by_options`) and they map to the correct
-  WooCommerce meta sort.
-- Takes **posts per page from the WooCommerce catalog settings**
-  (`wc_get_default_products_per_row()` × `wc_get_default_product_rows_per_page()`,
-  then the `loop_shop_per_page` filter). The `posts_per_page` shortcode
-  attribute and any request value are ignored for products, so the AJAX list
+- Makes `price`, `popularity` and `rating` real sort options that map to the
+  correct WooCommerce meta sort.
+- Takes posts-per-page from the WooCommerce catalog settings; the
+  `posts_per_page` attribute is ignored for products, so the AJAX list
   paginates in the same chunks as the native shop.
 
-WooCommerce's own `woocommerce_product_query` hook does **not** apply to this
-custom query — by design.
+WooCommerce's own `woocommerce_product_query` hook does not apply to this
+custom query, by design.
 
-## New filters / hooks
+## REST endpoint
 
-- `wralm_query_args` — filter. `apply_filters( 'wralm_query_args', array $args, WRALM_Query_Config $config )`.
-  Last chance to alter the `WP_Query` args for both the initial render and the
-  AJAX handler.
-- `wralm_require_nonce` — filter, default `false`. Return `true` to
-  **hard-enforce** the AJAX nonce on `wp_ajax(_nopriv)_loadmore` (a bad / missing
-  nonce then returns `403`). Left `false`, the nonce is checked but not required
-  (soft), so existing themes keep working.
-- `wralm_extend_all_search` — filter, default `false`. Return `true` to restore
-  the pre-1.5.0 behaviour where the ACF search extension applied to **every**
-  front-end search, not only WRALM shortcode queries.
+`GET /wp-json/wralm/v1/list` returns `{ html, pagination, max_page,
+canonical_url }` for a given query state. It sends `Cache-Control: public,
+max-age=30` so a reverse proxy or CDN can cache it. The route is public (a list
+of published posts is not a CSRF target); abuse is bounded by a per-IP rate
+limit, 60 requests/minute by default (`429` over the limit).
 
-## Upgrading to 1.5.0 — breaking changes
+## Theme integration
 
-Existing shortcodes keep rendering and behaving the same. The following affect
-themes / custom CSS / custom JS that reached into the plugin's markup:
+Cards are rendered with
+`get_template_part( 'all_posts_ajax/' . $post_type . '-card' )`. The theme must
+provide `all_posts_ajax/{post_type}-card.php` — for regular posts,
+`all_posts_ajax/post-card.php`. Activating the plugin creates the directory and
+an empty `post-card.php` for you to fill in.
 
-- **Instance-suffixed ids.** Themes or scripts targeting `#all_posts_filter`,
-  `#all-post-search` or `#js-post-order` must switch to the classes
-  `.all_posts_form`, `.all-post-search`, `.js-post-order` (or read the
-  `[data-filter-id]` attribute). Those ids are now suffixed with the
-  `filter_id`.
-- **`filter_expand_class` default changed** from the literal `filter_expand_class`
-  to `filter_expand`. CSS targeting `.filter_expand_class` must either update to
-  `.filter_expand` or pass `filter_expand_class="filter_expand_class"` explicitly
-  on the shortcode.
-- **Pagination wrapper lost its `id`.** The wrapper `<div>` no longer has
-  `id="pagination_holder"` — target `.pagination_holder` (it still also carries
-  `.load_more_holder`).
-- **"All" button re-activation.** In `multiply_filter="true"` mode, deactivating
-  one of several active filter buttons now re-activates the "All" button **only
-  when no other filter remains active**. Previously it re-activated "All"
-  alongside still-active filters.
-- **ACF search is now scoped.** The site-wide `posts_search` ACF extension now
-  applies **only** to WRALM shortcode queries. To restore the old global
-  behaviour: `add_filter( 'wralm_extend_all_search', '__return_true' );`.
-- **Per-term counts are corrected (1.5.1).** The number next to each filter
-  button now counts only posts the list would actually show — "Hide from list"
-  meta and, for products, WooCommerce catalog / stock visibility are applied,
-  and child-term posts are included (matching what clicking the button shows).
-  A term with nothing visible is dropped from the panel. Cached per
-  `(post_type, taxonomy)` in a 5-minute transient, like the "All (N)" count.
-  Set `show_filter_count="false"` on `[all_posts_ajax_filters]` to hide the
-  counts and skip these queries.
-- **Initial render forces `post_status="publish"`.** The `[all_posts_ajax]`
-  first (server-side) render now always queries only published posts. 1.4.0 let
-  capable logged-in users see private / draft posts on page 1, while AJAX pages
-  always showed only `publish` — this makes the two consistent. Use the
-  `wralm_query_args` filter to restore other statuses.
-- **"All (N)" count is not language-partitioned.** The count transient
-  (`wralm_vcount_<post_type>`) is shared across languages, so on WPML / Polylang
-  the "All (N)" number is the same in every language.
+## Hooks
 
-## Upgrading to 1.5.1 — `update_url` split
+| Hook | Type | Default | Purpose |
+|---|---|---|---|
+| `wralm_query_args` | filter | — | `( array $args, WRALM_Query_Config $config )` — last chance to alter the `WP_Query` args. |
+| `wralm_extend_all_search` | filter | `false` | `true` applies the ACF/comment/term search extension to every front-end search. |
+| `wralm_rate_limit` | filter | `60` | Max REST requests per IP per minute. `0` or less disables the limit. |
+| `wralm_max_posts_per_page` | filter | `200` | Upper clamp for `posts_per_page` coming from a request. |
 
-`update_url` is split into two independent attributes on `[all_posts_ajax]`:
+## JavaScript events
 
-- `sync_filters_url` — filtering / search / sorting → address bar.
-- `sync_pagination_url` — pagination clicks → address bar, plus real vs `#`
-  pagination hrefs and the pretty `/page/N/` format on archives.
+`AjaxPaginationDone` and `AjaxFilterDone` fire on `document` and on the
+instance's `.ajax_row_holder` after every request.
 
-Both default to `"true"`. `update_url` still works as a deprecated alias: when
-set without either `sync_*` attribute it applies to both, so an existing
-`update_url="false"` keeps its old meaning. An explicit `sync_*` attribute wins.
-
-The dead `data-update-url` attribute on `.ajax_filters_wrapper` and the unused
-`update_url` field on `WRALM_Filter_Config` are removed.
-
-### URL sync is now fully two-way
-
-- Pagination writes the page to the URL (`/page/N/` on archives, else
-  `?paged=N`); it never did before — the address bar stayed identical across
-  pages 2, 3, …
-- The server returns the exact `canonical_url` for the current state (filters +
-  page); the script pushes that verbatim, so filter + page + pretty/query
-  format never drift.
-- **Back / Forward** re-render the list to match the address bar (new
-  `popstate` handling), and the initial load restores both filters **and** the
-  page from the URL.
-- A filter / search / sort change always resets pagination to page 1.
-
-### `allCategories` ("All") button
-
-- Clicking **All** now clears only the category filters (buttons + selects) —
-  not the search field, not the sort — and re-queries. It also becomes active
-  automatically when the last active filter is removed, including in
-  single-select (`multiply_filter="false"`) mode, where clicking the active
-  term now deselects it.
-- The separate **Clear Filters** button (`enable_clear_button`) still wipes
-  everything: filters, search, and selects.
-
-### Filter buttons no longer hide the "current" term
-
-The filter panel used to omit the button for `get_queried_object()` (the term
-you were "already browsing"). On a WooCommerce faceted URL WordPress elevated
-that param into the main query, so the button for an active filter disappeared
-and its state could not be restored. Every term button is now always rendered.
-
-### Filter URL params are namespaced
-
-Taxonomy filters serialize as **`filter_<taxonomy>=slug1,slug2`** (comma
-percent-encoded to `%2C`), not a bare `<taxonomy>=`. A bare
-`?product_cat=courses,cmm` collides with WooCommerce's own `product_cat` query
-var: WordPress 301-redirects it and treats the page as a broken term archive.
-The namespaced `filter_product_cat=courses%2Ccmm` is not a query var, so there
-is no redirect, no 404, and pagination keeps a stable pretty `/page/N/` form.
-`URLSearchParams` decodes the comma back when the script restores state.
-
-## Known limitations
-
-Two instances that expose the **same taxonomy** share a single
-`?filter_<taxonomy>=` URL param: both restore their state from it on load, and
-each fires its own request on load. Use different taxonomies (or
-`sync_filters_url="false"` on one) if that double request is a problem.
-
-## Deployment / post-deploy QA
-
-After deploying, run the manual regression checklist in
-`docs/superpowers/plans/2026-08-29-wralm-fixes-and-improvements.md` **Appendix A**
-(35 rows; the `(WC)` rows need WooCommerce + a `product-card.php` template).
-
-## JQuery events
-
-- AjaxPaginationDone
-- AjaxFilterDone
-
-Both still fire on `document` after every request (unchanged public API). They
-also fire on the instance's `.ajax_row_holder` element for per-instance
-listeners.
-
-### Example
-
-````
-$(document).on('AjaxPaginationDone', function() {
-    //do something
+```js
+$(document).on('AjaxFilterDone', function () {
+    // re-init sliders, lazy images, etc.
 });
+```
 
-$(document).on('AjaxFilterDone', function() {
-    //do something
-});
-````
+## Development
+
+Two independent Vite builds, both run with `yarn build` in their directory
+(package manager: yarn).
+
+| Bundle | Directory | Entry | Output |
+|---|---|---|---|
+| Public load-more / filter script | repo root | `src/js/load_more_and_filter.js` | `dist/js/load_more_and_filter.js` |
+| Admin shortcode builder (React + TS) | `frontend/` | `frontend/src/index.tsx` | `dist/app.js`, `dist/style.css` |
+
+```
+yarn install && yarn build                 # public script
+cd frontend && yarn install && yarn build   # admin console
+```
+
+`dist/` is committed — the plugin loads it directly. Rebuild and commit after
+changing `src/js/` or `frontend/src/`.
+
+`yarn package` (or `yarn package:fast` to skip install) builds both bundles and
+produces `<slug>_<version>.zip` in the repo root, mirroring CI. On push to
+`main`, CI builds the same zip and publishes it as a GitHub Release
+`v<version>`, where the version is read from the plugin header.
+
+## License
+
+GPL-2.0
