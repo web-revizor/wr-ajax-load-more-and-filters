@@ -27,6 +27,7 @@ require_once WRALM_PATH . 'inc/class-filter-config.php';
 require_once WRALM_PATH . 'inc/class-load-more.php';
 require_once WRALM_PATH . 'inc/class-admin.php';
 require_once WRALM_PATH . 'inc/class-hide-meta-box.php';
+require_once WRALM_PATH . 'inc/class-search-settings.php';
 require_once WRALM_PATH . 'inc/class-search-acf.php';
 
 /**
@@ -41,11 +42,11 @@ class Web_Revizor_Ajax_Load_More
         new WRALM_Load_More();
         new WRALM_Admin();
         new WRALM_Hide_Meta_Box();
+        new WRALM_Search_Settings();
         new WRALM_Search_ACF();
     }
 }
 
 register_activation_hook(__FILE__, ['WRALM_Admin', 'create_card_template']);
-register_activation_hook(__FILE__, ['WRALM_Search_ACF', 'on_activate']);
 
 new Web_Revizor_Ajax_Load_More();
