@@ -73,11 +73,13 @@ class WRALM_Pagination
         $link = str_replace('%_%', 1 === $page ? '' : $format, $base);
         $link = str_replace('%#%', $page, $link);
         if (!empty($add_args)) {
-            // add_query_arg percent-encodes commas in multi-term values
-            // (product_cat=a%2Cb); that is exactly what WordPress'
-            // redirect_canonical normalises to, so leave it encoded and every
-            // producer agrees. URLSearchParams on the JS side decodes it back.
             $link = add_query_arg($add_args, $link);
+            // add_query_arg percent-encodes the commas in multi-term values
+            // (product_cat=a%2Cb). Restore them: the public script writes and
+            // reads literal commas, and with pretty /page/N/ (see
+            // WRALM_Query_Config::from_atts) the path is already canonical so
+            // redirect_canonical never rebuilds the query to re-encode them.
+            $link = str_replace(array('%2C', '%2c'), ',', $link);
         }
         return $link . $fragment;
     }
