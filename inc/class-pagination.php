@@ -23,6 +23,23 @@ class WRALM_Pagination
         global $wp_rewrite;
 
         $url = html_entity_decode($url);
+
+        $pag_base = isset($wp_rewrite->pagination_base) ? $wp_rewrite->pagination_base : 'page';
+
+        // Strip a trailing /page/N/ or /{pagination_base}/N/ that a deep server-rendered
+        // URL carries in, so AJAX pagination links don't double (/blog/page/2/page/3/).
+        // The (?=$|\?) anchor only matches when the segment ends the path.
+        $url = preg_replace(
+            '#/(?:page|' . preg_quote($pag_base, '#') . ')/\d+/?(?=$|\?)#',
+            '/',
+            $url
+        );
+
+        // Strip ?paged=N / ?page=N (and &-joined variants) from the query string.
+        $url = preg_replace('#([?&])(?:paged|page)=\d+#', '$1', $url);
+        $url = preg_replace('#[?&]+$#', '', $url);
+        $url = str_replace('?&', '?', $url);
+
         $path = strtok($url, '?');
         $base = trailingslashit($path) . '%_%';
 
