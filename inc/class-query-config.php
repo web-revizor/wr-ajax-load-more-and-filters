@@ -123,4 +123,146 @@ class WRALM_Query_Config {
         }
         return $out;
     }
+
+    public static function from_request( array $req ) {
+        $c = new self();
+
+        $pt = isset( $req['post_type'] ) ? sanitize_key( $req['post_type'] ) : 'post';
+        if ( ! post_type_exists( $pt ) || ! is_post_type_viewable( $pt ) ) {
+            $pt = 'post';
+        }
+        $c->post_type = $pt;
+
+        $c->posts_per_page  = isset( $req['posts_per_page'] ) ? (int) $req['posts_per_page'] : 10;
+        $c->pagination_type = isset( $req['pagination_type'] ) ? sanitize_key( $req['pagination_type'] ) : 'default';
+        $c->load_more_classes = isset( $req['more_classes'] ) ? sanitize_text_field( $req['more_classes'] ) : '';
+        $c->load_more_label   = isset( $req['more_label'] ) ? sanitize_text_field( $req['more_label'] ) : '';
+        $c->prev_text = isset( $req['prev_text'] ) ? sanitize_text_field( $req['prev_text'] ) : '';
+        $c->next_text = isset( $req['next_text'] ) ? sanitize_text_field( $req['next_text'] ) : '';
+        $c->filter_id = isset( $req['filter_id'] ) ? sanitize_key( $req['filter_id'] ) : '';
+        $c->update_url = ! isset( $req['update_url'] ) || 'false' !== strtolower( (string) $req['update_url'] );
+        $c->archive_context = isset( $req['archive_context'] ) && 'true' === strtolower( (string) $req['archive_context'] );
+
+        $c->paged = isset( $req['page'] ) ? max( 1, absint( $req['page'] ) ) : 1;
+
+        $c->base_url = isset( $req['base_url'] ) ? esc_url_raw( $req['base_url'] ) : home_url( '/' );
+
+        $c->archive_term_id  = isset( $req['category_id'] ) ? absint( $req['category_id'] ) : 0;
+        $c->archive_taxonomy = isset( $req['category_taxonomy'] ) ? sanitize_key( $req['category_taxonomy'] ) : '';
+
+        if ( ! empty( $req['search'] ) ) {
+            $c->search = sanitize_text_field( wp_unslash( $req['search'] ) );
+        }
+
+        $c->order   = ( isset( $req['order'] ) && 'ASC' === strtoupper( $req['order'] ) ) ? 'ASC' : 'DESC';
+        $c->orderby = isset( $req['orderby'] ) ? self::sanitize_orderby( $req['orderby'] ) : 'date';
+
+        if ( ! empty( $req['category'] ) && is_array( $req['category'] ) ) {
+            foreach ( $req['category'] as $taxonomy => $slugs ) {
+                $taxonomy = sanitize_key( $taxonomy );
+                if ( '' === $taxonomy || ! taxonomy_exists( $taxonomy ) ) {
+                    continue;
+                }
+                $slugs = array_values( array_filter( array_map( 'sanitize_title', (array) $slugs ) ) );
+                if ( $slugs ) {
+                    $c->tax_filters[ $taxonomy ] = $slugs;
+                }
+            }
+        }
+
+        return $c;
+    }
+
+    private function hide_meta_query() {
+        return array(
+            'relation' => 'OR',
+            array( 'key' => 'all_posts_ajax_hide', 'value' => '1', 'compare' => '!=' ),
+            array( 'key' => 'all_posts_ajax_hide', 'compare' => 'NOT EXISTS' ),
+        );
+    }
+
+    /**
+     * Merge the archive term scope with the user's taxonomy filters.
+     * A user filter on the SAME taxonomy as the archive term replaces the
+     * archive scope (the user explicitly chose terms there); filters on other
+     * taxonomies are AND-ed on top. Fixes the "archive + same-taxonomy filter
+     * = zero results" bug.
+     */
+    private function build_tax_query() {
+        $clauses = array( 'relation' => 'AND' );
+
+        foreach ( $this->tax_filters as $taxonomy => $slugs ) {
+            $clauses[] = array(
+                'taxonomy' => $taxonomy,
+                'field'    => 'slug',
+                'terms'    => $slugs,
+                'operator' => 'IN',
+            );
+        }
+
+        if ( $this->archive_term_id && $this->archive_taxonomy
+            && ! isset( $this->tax_filters[ $this->archive_taxonomy ] ) ) {
+            $clauses[] = array(
+                'taxonomy' => $this->archive_taxonomy,
+                'field'    => 'term_id',
+                'terms'    => array( $this->archive_term_id ),
+            );
+        }
+
+        if ( class_exists( 'WRALM_Woo' ) && WRALM_Woo::is_product_query( $this->post_type ) ) {
+            $vis = WRALM_Woo::visibility_tax_query();
+            if ( $vis ) {
+                $clauses[] = $vis;
+            }
+        }
+
+        return count( $clauses ) > 1 ? $clauses : array();
+    }
+
+    public function wp_query_args() {
+        $args = array(
+            'post_type'      => $this->post_type,
+            'posts_per_page' => $this->posts_per_page,
+            'post_status'    => 'publish',
+            'paged'          => $this->paged,
+            'meta_query'     => $this->hide_meta_query(),
+            'order'          => $this->order,
+        );
+
+        $tax_query = $this->build_tax_query();
+        if ( $tax_query ) {
+            $args['tax_query'] = $tax_query;
+        }
+
+        if ( '' !== $this->search ) {
+            $args['s'] = $this->search;
+            $args['wralm_search'] = 1; // scope flag for WRALM_Search_ACF
+        }
+
+        // orderby mapping (WooCommerce-aware keys handled in Phase 9 via WRALM_Woo)
+        if ( class_exists( 'WRALM_Woo' ) && WRALM_Woo::is_product_query( $this->post_type ) ) {
+            $args = array_merge( $args, WRALM_Woo::orderby_args( $this->orderby, $this->order ) );
+        } else {
+            $map = array( 'price' => 'date', 'popularity' => 'comment_count', 'rating' => 'date' );
+            $orderby = isset( $map[ $this->orderby ] ) ? $map[ $this->orderby ] : $this->orderby;
+            $args['orderby'] = $orderby;
+        }
+
+        return apply_filters( 'wralm_query_args', $args, $this );
+    }
+
+    public function pagination_args( $base, $format, $add_args = array() ) {
+        return array(
+            'base'              => $base,
+            'format'            => $format,
+            'current'           => $this->paged,
+            'type'              => $this->pagination_type,
+            'update_url'        => $this->update_url,
+            'add_args'          => $add_args,
+            'load_more_classes' => $this->load_more_classes,
+            'load_more_label'   => $this->load_more_label !== '' ? $this->load_more_label : __( 'Show more', 'wr-ajax-load-more-and-filters' ),
+            'prev_text'         => $this->prev_text !== '' ? $this->prev_text : __( 'Previous', 'wr-ajax-load-more-and-filters' ),
+            'next_text'         => $this->next_text !== '' ? $this->next_text : __( 'Next', 'wr-ajax-load-more-and-filters' ),
+        );
+    }
 }
