@@ -43,7 +43,7 @@ class WRALM_Load_More
 
     public function handle_ajax()
     {
-        $this->maybe_check_nonce(); // no-op until Phase 10
+        $this->maybe_check_nonce(); // soft nonce check (hard via wralm_require_nonce filter)
 
         $config = WRALM_Query_Config::from_request(wp_unslash($_POST));
 

@@ -44,9 +44,8 @@ class WRALM_Search_ACF
     }
 
     /**
-     * Rebuilds the cached list of searchable ACF field names.
-     * FIX: Only triggers when an ACF Field Group is saved, preventing
-     * massive memory/CPU spikes on regular post saves.
+     * ACF field-group save hook: rebuilds the searchable-field cache, but only
+     * when an `acf-field-group` post is saved (not on every post save).
      */
     public function refresh_searchable_fields($post_id)
     {
