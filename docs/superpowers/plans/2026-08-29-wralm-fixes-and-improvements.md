@@ -1057,6 +1057,39 @@ git commit -m "feat: multi-instance support via filter_id-scoped JS controllers"
 
 ---
 
+### Task 6.2: Every emitted `id` must be unique per instance (user directive)
+
+**Why:** with 2+ `[all_posts_ajax_filters]` / paginated lists on one page, the static ids `all_posts_filter`, `all-post-search`, `js-post-order`, `pagination_holder` collide — invalid HTML, and external CSS/JS targeting `#id` hits only the first. Every id the plugin emits on the front end must be instance-unique. JS already scopes by class + `data-filter-id` (Task 5.1), so this is about DOM validity and external consumers, not internal wiring.
+
+**Files:**
+- Modify: `inc/views/filter.php`, `inc/views/order.php`
+- Verify: `inc/class-pagination.php` (Task 6.1 already drops `id='pagination_holder'` → keep only `class='pagination_holder load_more_holder'`)
+
+**Not in scope:** `#wralm-console` (admin single mount) and `#all_posts_ajax_hide` (post-editor metabox, one per screen) — those are never multi-instance.
+
+- [ ] **Step 1:** `inc/views/filter.php` — the `<form>`:
+  - `id="all_posts_filter"` → `id="all_posts_filter_<?= esc_attr( $load_more_variables['filter_id'] ?? '' ) ?>"`
+  - keep `class="all_posts_form"` and `data-filter-id` (Task 4.4).
+- [ ] **Step 2:** `inc/views/filter.php` — the search `<input>`:
+  - `id="all-post-search"` → `id="all-post-search-<?= esc_attr( $load_more_variables['filter_id'] ?? '' ) ?>"`
+  - keep `class="all-post-search"` and `data-role="search"`.
+  - No `<label for>` references it (confirmed) — nothing else to update.
+- [ ] **Step 3:** `inc/views/order.php` — the `<select>`:
+  - `id="js-post-order"` → `id="js-post-order-<?= esc_attr( $load_more_variables['filter_id'] ?? '' ) ?>"`
+  - keep `class="js-post-order"`, `data-role="order"`, `data-filter-id`.
+- [ ] **Step 4:** Grep the whole plugin front-end output for `id=["']` — confirm every remaining emitted id is either instance-suffixed or single-instance-only (`wralm-console`, `all_posts_ajax_hide`). Any new id added by a later task (e.g. Task 8.1's orderby select) MUST follow the same `<name>-<filter_id>` pattern — carry this rule forward.
+- [ ] **Step 5: Verify** — `php -l` both views; shim harness: render two filter panels with `filter_id` `a` and `b`, assert `id="all_posts_filter_a"` and `id="all_posts_filter_b"` both present and distinct, same for the search input and (via `order.php`) the order select. Warning-clean under `error_reporting(E_ALL)`.
+- [ ] **Step 6: Commit**
+
+```bash
+git add inc/views/filter.php inc/views/order.php
+git commit -m "fix: instance-unique ids on filter form / search input / order select"
+```
+
+**Changelog (Task 12.3):** themes/scripts targeting `#all_posts_filter`, `#all-post-search`, or `#js-post-order` must switch to the classes `.all_posts_form`, `.all-post-search`, `.js-post-order` (or read `[data-filter-id]`).
+
+---
+
 ## Phase 7 — Search hardening (`inc/class-search-acf.php`)
 
 ### Task 7.1: Scope the `posts_search` filter to our queries
