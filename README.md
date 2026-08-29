@@ -129,8 +129,11 @@ its own **distinct** `filter_id`:
 [all_posts_ajax          post_type="post"    filter_id="blog"  posts_per_page="6"]
 
 [all_posts_ajax_filters post_type="product" filter_id="shop"  filter_by_category="true"]
-[all_posts_ajax          post_type="product" filter_id="shop"  posts_per_page="12"]
+[all_posts_ajax          post_type="product" filter_id="shop"]
 ````
+
+(`posts_per_page` is omitted on the product list — it comes from the
+WooCommerce catalog settings, see the WooCommerce section.)
 
 The public script instantiates one controller per `.ajax_row_holder` and scopes
 every selector by `filter_id`, so the panels never cross-talk. All emitted ids
@@ -156,10 +159,14 @@ When `post_type="product"` and WooCommerce is active, `[all_posts_ajax]`:
 - Makes `price` / `popularity` / `rating` real sort options — expose them
   through the Order tab (`order_by_options`) and they map to the correct
   WooCommerce meta sort.
+- Takes **posts per page from the WooCommerce catalog settings**
+  (`wc_get_default_products_per_row()` × `wc_get_default_product_rows_per_page()`,
+  then the `loop_shop_per_page` filter). The `posts_per_page` shortcode
+  attribute and any request value are ignored for products, so the AJAX list
+  paginates in the same chunks as the native shop.
 
-WooCommerce's own `woocommerce_product_query` hook and `loop_shop_per_page`
-filter do **not** apply to this custom query — by design. `posts_per_page` is
-taken from the shortcode attribute only.
+WooCommerce's own `woocommerce_product_query` hook does **not** apply to this
+custom query — by design.
 
 ## New filters / hooks
 
