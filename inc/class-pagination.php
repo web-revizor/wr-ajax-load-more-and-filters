@@ -73,10 +73,10 @@ class WRALM_Pagination
         $link = str_replace('%_%', 1 === $page ? '' : $format, $base);
         $link = str_replace('%#%', $page, $link);
         if (!empty($add_args)) {
-            // add_query_arg percent-encodes commas in multi-term values
-            // (filter_product_cat=a%2Cb) — kept encoded on purpose. URLSearchParams
-            // decodes it back on the JS side when restoring state.
-            $link = add_query_arg($add_args, $link);
+            // add_query_arg() does NOT urlencode values, so a multi-term value
+            // would land as filter_product_cat=a,b. Encode first (comma -> %2C);
+            // URLSearchParams decodes it back on the JS side when restoring.
+            $link = add_query_arg(urlencode_deep($add_args), $link);
         }
         return $link . $fragment;
     }
