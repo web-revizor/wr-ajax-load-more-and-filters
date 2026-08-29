@@ -86,19 +86,32 @@ class WRALM_Query_Config {
         $c->paged = self::current_paged();
 
         $term = get_queried_object();
-        if ( $term instanceof WP_Term ) {
-            // A term that arrived via a query-string param (?product_cat=shoes)
-            // is one of THIS plugin's own filters that WordPress / WooCommerce
-            // elevated into the main query — not a real archive. Treating it as
-            // archive scope drops its filter button from the panel and emits
-            // pretty /page/N/ links on a page that will 404 on them.
+        if ( $term instanceof WP_Term
             // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-            $from_query_string = isset( $_GET[ $term->taxonomy ] );
-            if ( $from_query_string ) {
-                $c->archive_context = false;
-            } else {
-                $c->archive_term_id  = (int) $term->term_id;
-                $c->archive_taxonomy = (string) $term->taxonomy;
+            && ! isset( $_GET[ $term->taxonomy ] ) ) {
+            // Only a term from the PATH (a real /category/x/ archive) becomes
+            // fixed scope. A term WooCommerce/WP elevated from a ?product_cat=
+            // query param is the user's own filter — AND-ing it on top of their
+            // tax_query would double-scope. The page is still an archive, so
+            // archive_context is left untouched.
+            $c->archive_term_id  = (int) $term->term_id;
+            $c->archive_taxonomy = (string) $term->taxonomy;
+        }
+
+        // A faceted filter URL (?product_cat=courses,figma) 404s the main query
+        // when the comma-joined value matches no single term, which flips
+        // archive_context off and pagination to ?paged=N. WordPress then
+        // canonical-redirects that back to /page/N/ (re-encoding the commas),
+        // so the pagination URL flaps between two forms. If any query-string
+        // key is a real taxonomy and we're not on a singular / front page, this
+        // is that archive — keep pretty /page/N/ pagination.
+        if ( ! $c->archive_context && ! is_singular() && ! is_front_page() ) {
+            // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+            foreach ( array_keys( (array) $_GET ) as $gk ) {
+                if ( taxonomy_exists( sanitize_key( $gk ) ) ) {
+                    $c->archive_context = true;
+                    break;
+                }
             }
         }
 
