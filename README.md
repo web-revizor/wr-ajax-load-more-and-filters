@@ -267,12 +267,13 @@ and its state could not be restored. Every term button is now always rendered.
 
 ### Filter URL params are namespaced
 
-Taxonomy filters serialize as **`filter_<taxonomy>=slug,slug`**, not a bare
-`<taxonomy>=`. A bare `?product_cat=courses,cmm` collides with WooCommerce's own
-`product_cat` query var: WordPress 301-redirects it (re-encoding the comma to
-`%2C`) and treats the page as a broken term archive. The namespaced
-`filter_product_cat=courses,cmm` is not a query var, so there is no redirect, no
-404, and pagination keeps a stable pretty `/page/N/` form with literal commas.
+Taxonomy filters serialize as **`filter_<taxonomy>=slug1,slug2`** (comma
+percent-encoded to `%2C`), not a bare `<taxonomy>=`. A bare
+`?product_cat=courses,cmm` collides with WooCommerce's own `product_cat` query
+var: WordPress 301-redirects it and treats the page as a broken term archive.
+The namespaced `filter_product_cat=courses%2Ccmm` is not a query var, so there
+is no redirect, no 404, and pagination keeps a stable pretty `/page/N/` form.
+`URLSearchParams` decodes the comma back when the script restores state.
 
 ## Known limitations
 
