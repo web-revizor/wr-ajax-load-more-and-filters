@@ -5,3 +5,8 @@ node_modules/
 /plugin-build/
 /*.zip
 /changelog.txt
+
+# Isolated workspaces / SDD scratch
+/.worktrees/
+/.superpowers/
+/.claude/worktrees/

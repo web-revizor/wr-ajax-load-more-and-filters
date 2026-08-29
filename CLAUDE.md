@@ -48,15 +48,29 @@ CI (`.github/workflows/build.yml`) на push у `main` читає `Version:` з 
 
 `wr-ajax-load-more-and-filters.php` підключає `inc/class-*.php` і в конструкторі `Web_Revizor_Ajax_Load_More` створює по одному об'єкту кожного підсистемного класу. **Кожен клас реєструє власні WordPress-хуки у власному конструкторі** — центрального реєстру хуків немає.
 
+- **`WRALM_Query_Config`** (`inc/class-query-config.php`) — єдине джерело істини для запиту списку `[all_posts_ajax]`. `from_atts()` будує його з атрибутів шорткоду, `from_request()` — з (unslashed) `$_POST` AJAX-запиту (з санітизацією й whitelist). З нього ж:
+  - `wp_query_args()` — повний масив аргументів `WP_Query` (`post_status=publish` завжди, `meta_query` для «Hide from list», `tax_query`, `s` + query-var `wralm_search`, orderby-мапінг, `apply_filters('wralm_query_args', $args, $config)`);
+  - `data_attrs()` / `render_data_attr_string()` — набір `data-*` для `.ajax_row`;
+  - `pagination_args($base, $format, $add_args)` — аргументи для `WRALM_Pagination::links()`.
+  - І `WRALM_Shortcode::render_posts`, і `WRALM_Load_More::handle_ajax` делегують сюди — запит визначено один раз.
+- **`WRALM_Filter_Config`** (`inc/class-filter-config.php`) — замінює ручне складання глобалі `$load_more_variables` для в'юх панелі фільтрів; `from_atts()` будує DTO, `to_legacy_array()` віддає стару асоціативну форму, і глобаль **усе ще виставляється** з неї заради back-compat. Має статичний `visible_count($post_type)` — кешований (5-хв transient) підрахунок для лічильника «All (N)» (виключає приховані / catalog-invisible записи).
+- **`WRALM_Woo`** (`inc/class-woo.php`) — статичний хелпер, **без хуків**: `is_product_query()`, `visibility_tax_query()`, `orderby_args()`, `setup_loop()` / `reset_loop()`. Кожен метод — безпечний no-op, коли WooCommerce неактивний. Підключається першим, щоб `class_exists('WRALM_Woo')`-гварди в `WRALM_Query_Config` резолвилися.
 - **`WRALM_Shortcode`** — `[all_posts_ajax]` (список + пагінація) і `[all_posts_ajax_filters]` (панель фільтрів/пошуку/сортування).
-  - `[all_posts_ajax]` рендерить `.ajax_row_holder > .ajax_row` і серіалізує всю конфігурацію шорткоду в `data-*`-атрибути на `.ajax_row` — саме звідти JS бере параметри, окремого localize для неї немає.
-  - `[all_posts_ajax_filters]` кладе конфіг у глобальну `$load_more_variables`, яку читають в'юхи `inc/views/filter.php` та `inc/views/order.php`.
-  - Зв'язок двох шорткодів — атрибут `filter_id` (за замовчуванням `<post_type>_filter`), який консоль підставляє в обидва.
-- **`WRALM_Load_More`** — `wp_enqueue_scripts` (підключає `dist/js/...`, віддає `loadmore_params` через `wp_localize_script`) + обробник `wp_ajax_loadmore` / `wp_ajax_nopriv_loadmore`. Обробник будує `WP_Query` з `$_POST`, рендерить картки й повертає `wp_send_json(['html', 'pagination', 'max_page', 'base_url'])`.
-- **`WRALM_Pagination::links()`** — статичний генератор розмітки пагінації (`list` / `both` / `none` / default-кнопка). Спільний для першого рендера в шорткоді і для AJAX-відповіді.
+  - `[all_posts_ajax]` рендерить `.ajax_row_holder > .ajax_row`; конфіг тепер тече через `WRALM_Query_Config`, який серіалізує всі параметри в `data-*` на `.ajax_row` (окремого localize для неї немає). `data-filter-id` виставляється **завжди**.
+  - `[all_posts_ajax_filters]` будує `WRALM_Filter_Config`, кладе `to_legacy_array()` у глобальну `$load_more_variables`, яку читають в'юхи `inc/views/filter.php` та `inc/views/order.php`. На `.ajax_filters_wrapper` — `data-filter-id` і `data-update-url`.
+  - Зв'язок двох шорткодів — атрибут `filter_id` (за замовчуванням `<post_type>_filter`), який консоль підставляє в обидва. Кілька незалежних пар список+фільтри на одній сторінці = різний `filter_id` на кожну. Усі id тепер instance-unique (`all_posts_filter_<filter_id>`, `all-post-search-<filter_id>`, `js-post-order-<filter_id>`); у обгортки пагінації id прибрано — ціль `.pagination_holder`.
+- **`WRALM_Load_More`** — `wp_enqueue_scripts` (підключає `dist/js/...`, віддає `loadmore_params` через `wp_localize_script`, зокрема `nonce`) + обробник `wp_ajax_loadmore` / `wp_ajax_nopriv_loadmore`. Обробник делегує в `WRALM_Query_Config::from_request`, рендерить картки й повертає `wp_send_json(['html', 'pagination', 'max_page', 'base_url'])`. Nonce перевіряється м'яко; `add_filter('wralm_require_nonce', '__return_true')` робить його обов'язковим (403 при невалідному).
+- **`WRALM_Pagination::links()`** — статичний генератор розмітки пагінації (`list` / `both` / `none` / default-кнопка). Коли передано явні `base` / `format` / `total` / `current` — працює лише з `$args`, не чіпаючи WP-глобалі (потрібно для AJAX). Honorить `update_url` (при `false` усі `href` = `#`).
+  - `WRALM_Pagination::resolve_base($update_url, $archive_context, $url)` → `[$base, $format]` — зрізає наявний `/page/N/` чи `?paged=N` з URL і вибирає pretty-vs-query формат пагінації за контекстом (pretty `/page/N/` лише на archive/home + `update_url=true` + pretty permalinks, інакше `?paged=%#%`).
 - **`WRALM_Admin`** — пункт меню «WR Ajax Load More», монтує React у `#wralm-console`, віддає йому `window.wralmSettings` (`postTypes`, `taxonomies` — тільки публічні не-вбудовані + примусово `post`). Хук активації `create_card_template` створює в темі каталог `all_posts_ajax/` і порожній `post-card.php`.
 - **`WRALM_Hide_Meta_Box`** — чекбокс «Hide from list» на всіх публічних типах записів; пише мету `all_posts_ajax_hide`. Обидва `WP_Query` (шорткод і AJAX) виключають такі записи через `meta_query`.
-- **`WRALM_Search_ACF`** — розширює `posts_search`, щоб пошук бив ще й по значеннях ACF-полів, іменах термінів і коментарях. Список ACF-полів кешується в опції `wralm_searchable_acf_fields`, перебудовується на `acf/save_post` тільки коли зберігають `acf-field-group`.
+- **`WRALM_Search_ACF`** — розширює `posts_search`, щоб пошук бив ще й по значеннях ACF-полів, іменах термінів і коментарях. Тепер застосовується **лише** до WRALM-запитів (перевіряє query-var `wralm_search`, яку виставляє `WRALM_Query_Config::wp_query_args`); глобальну поведінку повертає `add_filter('wralm_extend_all_search', '__return_true')`. `meta_key` завжди обмежений `IN (...)` — повного скану `wp_postmeta` більше немає. Список ACF-полів кешується в опції `wralm_searchable_acf_fields`, будується на `admin_init` (bootstrap, якщо опції немає) і перебудовується на `acf/save_post` `acf-field-group`.
+
+### Фільтри / хуки
+
+- `wralm_query_args` — filter, `($args, WRALM_Query_Config $config)`; фінальна зміна аргументів `WP_Query`.
+- `wralm_require_nonce` — filter, default `false`; `true` → жорстка перевірка nonce на AJAX-ендпоінті.
+- `wralm_extend_all_search` — filter, default `false`; `true` → ACF-розширення пошуку знову глобальне.
 
 ### Контракт із темою
 
@@ -66,7 +80,7 @@ CI (`.github/workflows/build.yml`) на push у `main` читає `Version:` з 
 
 ### Публічний скрипт (`src/js/load_more_and_filter.js`)
 
-Один IIFE на jQuery (`jQuery` — глобал від WordPress, не бандлиться). Керується даними з DOM: читає `data-*` з `.ajax_row`, класи `.js-category-filter` / `.js-category-filter-select` / `#all-post-search` / `#js-post-order` / `#all_posts_filter`. Синхронізує стан фільтрів з URL (`history.pushState`, параметри `<taxonomy>=slug` і `filter_search`), відновлює стан з URL на завантаженні. Після кожного запиту тригерить події `AjaxPaginationDone` / `AjaxFilterDone` на `document` — публічний API для тем.
+Один IIFE на jQuery (`jQuery` — глобал від WordPress, не бандлиться). Один контролер (`Instance`) на `.ajax_row_holder`, усе scoped по `[data-filter-id]`. Керується даними з DOM: читає `data-*` з `.ajax_row`, класи `.js-category-filter` / `.js-category-filter-select` / `.all-post-search` / `.js-post-order` / `.js-post-orderby` / `.all_posts_form` у межах панелі `.ajax_filters_wrapper[data-filter-id="…"]` (id тепер instance-suffixed, не селектори). Fallback: якщо жодна панель не збіглася за `filter-id`, а на сторінці рівно одна `.ajax_filters_wrapper` — береться вона (pre-1.5.0 пари з розбіжним implied `filter_id`). Синхронізує стан фільтрів з URL (`history.pushState`, параметри `<taxonomy>=slug` і `filter_search`), відновлює стан з URL на завантаженні. Після кожного запиту тригерить події `AjaxPaginationDone` / `AjaxFilterDone` на `document` і на `.ajax_row_holder` — публічний API для тем.
 
 ### Адмін-консоль (`frontend/`)
 
@@ -74,6 +88,7 @@ Vite + React 18 + TypeScript. Призначення — **тільки кліє
 
 - Стан форми — цілком у `frontend/src/hooks/useShortcodeBuilder.ts`; компоненти презентаційні, отримують стан і сетери пропсами. Там же логіка складання обох рядків шорткоду (helper `attr()` пропускає порожні значення).
 - Вкладки в `frontend/src/components/Tabs/` (`main` / `classes` / `filters` / `search` / `order`), спільні інпути — в `sharedComponents/`.
+- Нові поля 1.5.0: `MainSettings.updateUrl` (bool → `update_url="false"` на `[all_posts_ajax]`, вкладка Main) і `OrderSettings.orderByOptions` (string[]) / `OrderSettings.orderByLabels` (csv-string) → `order_by_options` / `order_by_labels` на `[all_posts_ajax_filters]`, вкладка Order. Для `post_type="product"` вкладка Main показує інформаційну підказку про WooCommerce (нового атрибута немає — PHP автодетектить).
 - Аліас `@` → корінь `frontend/`, тому імпорти виглядають як `@/src/...`.
 - Стилі: `frontend/src/styles.scss` (директиви `@tailwind` + кастомні `@layer`-утиліти) + Tailwind (`tailwind.config.ts`, `postcss.config.js`, sass). `frontend/src/styles.css` — порожній невикористаний залишок.
 - Глобал IIFE-збірки — `WebRevizorAiAgent` (`vite.config.ts` `lib.name`), вхід `frontend/src/index.tsx`.
@@ -87,7 +102,7 @@ Vite + React 18 + TypeScript. Призначення — **тільки кліє
 1. Розшир відповідний тип у `frontend/src/types/index.ts`.
 2. Додай дефолт у `frontend/src/hooks/useShortcodeBuilder.ts` і, за потреби, рядок у `attr(...)`-складання.
 3. Додай контрол у відповідну вкладку в `frontend/src/components/Tabs/`.
-4. Додай атрибут у `$default` відповідного методу `WRALM_Shortcode` (`render_posts` або `render_filters`) і проведи його до JS/в'юхи.
+4. Додай атрибут у `shortcode_defaults()` відповідного DTO (`WRALM_Query_Config` для `[all_posts_ajax]`, `WRALM_Filter_Config` для `[all_posts_ajax_filters]`), спарси його у `from_atts()` (і `from_request()` + `data_attrs()` для `WRALM_Query_Config`, або `to_legacy_array()` для `WRALM_Filter_Config`) і проведи до JS/в'юхи.
 
 ## Каталоги з локальною документацією
 

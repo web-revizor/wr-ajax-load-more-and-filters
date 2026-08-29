@@ -3,7 +3,7 @@
 Plugin Name:  Web Revizor: Ajax Load More & Filters
 Plugin URI:
 Description:  All posts ajax load more, search and filter
-Version:      1.4.0
+Version:      1.5.0
 Author:       WebRevizor
 Author URI:   https://github.com/web-revizor/
 License:      GPL2
@@ -17,10 +17,13 @@ if (!defined('ABSPATH')) {
 
 define('WRALM_PATH', plugin_dir_path(__FILE__));
 define('WRALM_URL', plugin_dir_url(__FILE__));
-define('WRALM_VERSION', '1.4.0');
+define('WRALM_VERSION', '1.5.0');
 
+require_once WRALM_PATH . 'inc/class-woo.php';
 require_once WRALM_PATH . 'inc/class-pagination.php';
+require_once WRALM_PATH . 'inc/class-query-config.php';
 require_once WRALM_PATH . 'inc/class-shortcode.php';
+require_once WRALM_PATH . 'inc/class-filter-config.php';
 require_once WRALM_PATH . 'inc/class-load-more.php';
 require_once WRALM_PATH . 'inc/class-admin.php';
 require_once WRALM_PATH . 'inc/class-hide-meta-box.php';
@@ -43,5 +46,6 @@ class Web_Revizor_Ajax_Load_More
 }
 
 register_activation_hook(__FILE__, ['WRALM_Admin', 'create_card_template']);
+register_activation_hook(__FILE__, ['WRALM_Search_ACF', 'on_activate']);
 
 new Web_Revizor_Ajax_Load_More();

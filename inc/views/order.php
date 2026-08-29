@@ -4,9 +4,15 @@ if (!defined('ABSPATH')) {
 }
 
 global $load_more_variables;
+$load_more_variables = isset( $config ) && $config instanceof WRALM_Filter_Config
+    ? $config->to_legacy_array()
+    : $load_more_variables;
 ?>
 <div>
-    <select id="js-post-order">
+    <select id="js-post-order-<?= esc_attr( $load_more_variables['filter_id'] ?? '' ) ?>"
+            class="js-post-order"
+            data-role="order"
+            data-filter-id="<?= esc_attr( $load_more_variables['filter_id'] ?? '' ) ?>">
         <option value="DESC">
             <?= esc_html($load_more_variables['label_newest_order']); ?>
         </option>
@@ -15,3 +21,22 @@ global $load_more_variables;
         </option>
     </select>
 </div>
+
+<?php
+// Parse options and labels the SAME way so their indices stay parallel; a blank
+// option slot is skipped in the loop (its label slot is skipped with it).
+$orderby_opts   = array_values( array_map( 'trim', explode( ',', (string) ( $load_more_variables['order_by_options'] ?? '' ) ) ) );
+$orderby_labels = array_values( array_map( 'trim', explode( ',', (string) ( $load_more_variables['order_by_labels'] ?? '' ) ) ) );
+?>
+<?php if ( array_filter( $orderby_opts ) ) : ?>
+    <div>
+        <select class="js-post-orderby"
+                data-role="orderby"
+                data-filter-id="<?= esc_attr( $load_more_variables['filter_id'] ?? '' ) ?>">
+            <?php foreach ( $orderby_opts as $i => $key ) : ?>
+                <?php if ( $key === '' ) { continue; } ?>
+                <option value="<?= esc_attr( $key ) ?>"><?= esc_html( isset( $orderby_labels[ $i ] ) && $orderby_labels[ $i ] !== '' ? $orderby_labels[ $i ] : ucfirst( str_replace( '_', ' ', $key ) ) ) ?></option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+<?php endif; ?>

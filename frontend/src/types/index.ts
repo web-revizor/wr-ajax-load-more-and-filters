@@ -8,6 +8,7 @@ export interface MainSettings {
   loadMoreLabel: string;
   prevText: string;
   nextText: string;
+  updateUrl: boolean;
 }
 
 export interface ClassSettings {
@@ -37,6 +38,8 @@ export interface OrderSettings {
   enableOrder: boolean;
   labelNewestOrder: string;
   labelOldOrder: string;
+  orderByOptions: string[];
+  orderByLabels: string;
 }
 
 export interface BuilderState {
