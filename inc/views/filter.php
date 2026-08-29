@@ -90,7 +90,7 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
     }
 }
 ?>
-<form id="all_posts_filter"
+<form id="all_posts_filter_<?= esc_attr( $load_more_variables['filter_id'] ?? '' ) ?>"
       class="all_posts_form"
       role="search"
       data-filter-id="<?= esc_attr( $load_more_variables['filter_id'] ?? '' ) ?>">
@@ -98,7 +98,7 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
         <div class="all-post-search-holder">
             <input class="all-post-search"
                    type="search"
-                   id="all-post-search"
+                   id="all-post-search-<?= esc_attr( $load_more_variables['filter_id'] ?? '' ) ?>"
                    placeholder="<?= esc_attr($load_more_variables['search_placeholder']); ?>"
                    data-role="search">
             <button type="submit"
