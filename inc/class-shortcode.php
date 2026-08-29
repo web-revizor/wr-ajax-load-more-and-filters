@@ -74,7 +74,8 @@ class WRALM_Shortcode
         $load_more_variables = $config->to_legacy_array();
 
         $filter_id = $config->filter_id;
-        $wrap_attr = ' data-filter-id="' . esc_attr($filter_id) . '"';
+        $wrap_attr = ' data-filter-id="' . esc_attr($filter_id) . '"'
+            . ' data-update-url="' . esc_attr($config->update_url ? 'true' : 'false') . '"';
 
         $results = '<div class="ajax_filters_wrapper"' . $wrap_attr . '>';
 

@@ -30,6 +30,7 @@ class WRALM_Filter_Config {
     public $label_newest_order = '';
     public $label_old_order = '';
     public $filter_id = '';
+    public $update_url = true;
 
     public $orderby_options = '';
     public $orderby_labels = array();
@@ -56,6 +57,7 @@ class WRALM_Filter_Config {
             'label_newest_order'  => __( 'Newest First', 'wr-ajax-load-more-and-filters' ),
             'label_old_order'     => __( 'Old First', 'wr-ajax-load-more-and-filters' ),
             'filter_id'           => '',
+            'update_url'          => 'true',
         );
     }
 
@@ -86,6 +88,7 @@ class WRALM_Filter_Config {
         $c->filter_id = $a['filter_id'] !== ''
             ? sanitize_key( $a['filter_id'] )
             : sanitize_key( $a['post_type'] ) . '_filter';
+        $c->update_url = ( 'false' !== strtolower( (string) $a['update_url'] ) );
 
         return $c;
     }
@@ -117,6 +120,7 @@ class WRALM_Filter_Config {
             'post_type'           => $this->post_type,
             'filter_id'           => $this->filter_id,
             'enable_order'        => $this->enable_order,
+            'update_url'          => $this->update_url,
             'orderby_options'     => $this->orderby_options,
             'orderby_labels'      => $this->orderby_labels,
         );
