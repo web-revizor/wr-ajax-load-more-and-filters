@@ -42,112 +42,59 @@ class WRALM_Load_More
 
     public function handle_ajax()
     {
-        $wp_query_post_type = isset($_POST['post_type']) ? sanitize_key($_POST['post_type']) : 'post';
-        $wp_query_posts_per_page = isset($_POST['posts_per_page']) ? (int)$_POST['posts_per_page'] : 10;
-        $wp_query_pagination_type = isset($_POST['pagination_type']) ? sanitize_text_field($_POST['pagination_type']) : 'default';
-        $categories = isset($_POST['category']) ? (array)$_POST['category'] : array();
-        $load_more_classes = isset($_POST['more_classes']) ? sanitize_text_field($_POST['more_classes']) : '';
-        $load_more_label = isset($_POST['more_label']) ? sanitize_text_field($_POST['more_label']) : '';
-        $prev_text = isset($_POST['prev_text']) ? sanitize_text_field($_POST['prev_text']) : '';
-        $next_text = isset($_POST['next_text']) ? sanitize_text_field($_POST['next_text']) : '';
-        $base_url = isset($_POST['base_url']) ? esc_url_raw($_POST['base_url']) : home_url('/');
-        $category_id = isset($_POST['category_id']) ? (int)$_POST['category_id'] : 0;
-        $category_taxonomy = isset($_POST['category_taxonomy']) ? sanitize_text_field($_POST['category_taxonomy']) : '';
-        $tax_query = array('relation' => 'AND');
-        $search = '';
-        $order = 'DESC';
+        $this->maybe_check_nonce(); // no-op until Phase 10
 
-        if (!empty($_POST['search'])) {
-            $search = sanitize_text_field($_POST['search']);
-        }
+        $config = WRALM_Query_Config::from_request(wp_unslash($_POST));
 
-        if (!empty($_POST['order'])) {
-            $order = sanitize_text_field($_POST['order']);
-        }
+        $query = new WP_Query($config->wp_query_args());
 
-        if ($category_id && !empty($category_taxonomy)) {
-            $tax_query[] = array(
-                'taxonomy' => sanitize_key($category_taxonomy),
-                'field' => 'term_id',
-                'terms' => array((int)$category_id),
-            );
-        }
-
-        if ($categories) {
-            foreach ($categories as $category => $value) :
-                $tax_query[] = array(
-                    'taxonomy' => sanitize_key($category),
-                    'field' => 'slug',
-                    'terms' => array_map('sanitize_text_field', (array)$value),
-                );
-            endforeach;
-        }
-
-        $args = array(
-            'post_type' => $wp_query_post_type,
-            'posts_per_page' => $wp_query_posts_per_page,
-            'post_status' => 'publish',
-            'tax_query' => $tax_query,
-            'order' => $order,
-            'paged' => isset($_POST['page']) ? absint($_POST['page']) : 1,
-            's' => $search,
-            'meta_query' => array(
-                'relation' => 'OR',
-                array(
-                    'key' => 'all_posts_ajax_hide',
-                    'value' => '1',
-                    'compare' => '!=',
-                ),
-                array(
-                    'key' => 'all_posts_ajax_hide',
-                    'compare' => 'NOT EXISTS',
-                ),
-            ),
-        );
-
-        $query = new WP_Query($args);
+        $is_product = class_exists('WRALM_Woo') && WRALM_Woo::is_product_query($config->post_type);
 
         ob_start();
-        if ($query->have_posts()) :
-            while ($query->have_posts()) :
+        if ($query->have_posts()) {
+            if ($is_product) {
+                WRALM_Woo::setup_loop($query);
+            }
+            while ($query->have_posts()) {
                 $query->the_post();
-                get_template_part('all_posts_ajax/' . $wp_query_post_type . '-card');
-            endwhile;
+                get_template_part('all_posts_ajax/' . $config->post_type . '-card');
+            }
+            if ($is_product) {
+                WRALM_Woo::reset_loop();
+            }
             wp_reset_postdata();
-        endif;
+        }
         $html = ob_get_clean();
 
-        global $wp_rewrite;
-
-        if ($wp_rewrite->using_permalinks()) {
-            $pagination_base = $wp_rewrite->pagination_base; // usually 'page'
-            $base_url = preg_replace('#/' . $pagination_base . '/\d+/?$#', '/', $base_url);
-        }
-
-        $pagenum_link = trailingslashit($base_url) . '%_%';
-
-        $format = $wp_rewrite->using_index_permalinks() && !strpos($pagenum_link, 'index.php') ? 'index.php/' : '';
-        $format .= $wp_rewrite->using_permalinks() ? user_trailingslashit($wp_rewrite->pagination_base . '/%#%', 'paged') : '?paged=%#%';
-
-        $args_pagination = array(
-            'base' => $pagenum_link,
-            'format' => $format,
-            'total' => $query->max_num_pages,
-            'current' => $args['paged'],
-            'type' => $wp_query_pagination_type,
-            'load_more_classes' => $load_more_classes,
-            'load_more_label' => $load_more_label,
-            'prev_text' => $prev_text,
-            'next_text' => $next_text,
+        list($base, $format) = WRALM_Pagination::resolve_base(
+            $config->update_url,
+            $config->archive_context,
+            $config->base_url
         );
 
-        $pagination = WRALM_Pagination::links($args_pagination);
+        // preserve non-pagination query args (?filter_search=, custom params) on links
+        $add_args = array();
+        $parsed = wp_parse_url($config->base_url);
+        if (!empty($parsed['query'])) {
+            wp_parse_str($parsed['query'], $add_args);
+            unset($add_args['paged'], $add_args['page']);
+        }
+
+        $pagination = WRALM_Pagination::links(
+            $config->pagination_args($base, $format, $add_args) + array('total' => $query->max_num_pages)
+        );
+
+        $pag_base = isset($GLOBALS['wp_rewrite']->pagination_base) ? $GLOBALS['wp_rewrite']->pagination_base : 'page';
 
         wp_send_json(array(
             'html' => $html,
             'pagination' => $pagination,
             'max_page' => $query->max_num_pages,
-            'base_url' => $base_url,
+            'base_url' => $config->update_url
+                ? preg_replace('#/(?:page|' . preg_quote($pag_base, '#') . ')/\d+/?$#', '/', $config->base_url)
+                : $config->base_url,
         ));
     }
+
+    private function maybe_check_nonce() {} // Phase 10 fills this in
 }
