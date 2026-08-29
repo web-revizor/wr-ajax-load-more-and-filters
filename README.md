@@ -62,7 +62,7 @@ straight out of `.github/workflows/build.yml`, the slug comes from
   the starting value for the list itself.
 - sync_filters_url: `"true"` | `"false"` (default `"true"`). When `"true"`,
   filtering / search / sorting write the current filter state to the address bar
-  via `history.pushState` (params `<taxonomy>=slug`, `filter_search`). When
+  via `history.pushState` (params `filter_<taxonomy>=slug`, `filter_search`). When
   `"false"`, those actions never touch the URL — filter state is in-memory only.
 - sync_pagination_url: `"true"` | `"false"` (default `"true"`). When `"true"`,
   pagination `<a>` elements carry real `href`s and clicking a numbered / prev /
@@ -259,28 +259,23 @@ The dead `data-update-url` attribute on `.ajax_filters_wrapper` and the unused
 ### Filter buttons no longer hide the "current" term
 
 The filter panel used to omit the button for `get_queried_object()` (the term
-you were "already browsing"). On a WooCommerce faceted URL (`?product_cat=…`)
-WordPress elevates that param into the main query, so the button for an active
-filter disappeared and its state could not be restored. Every term button is
-now always rendered, and a term that came in via a query param no longer
-double-scopes the query.
+you were "already browsing"). On a WooCommerce faceted URL WordPress elevated
+that param into the main query, so the button for an active filter disappeared
+and its state could not be restored. Every term button is now always rendered.
 
-### Faceted URLs keep pretty pagination
+### Filter URL params are namespaced
 
-A multi-term faceted URL — `/shop/?product_cat=courses,figma` — 404s the main
-query (no single term matches `courses,figma`). That used to flip pagination to
-`?paged=N`, which WordPress then canonical-redirects back to `/page/N/`
-(re-encoding the comma as `%2C`), so the pagination URL flapped between two
-forms. `from_atts` now recognises any `?<taxonomy>=` query param on a
-non-singular page as an archive context and emits pretty `/page/N/` from the
-first render. Because the path is then already canonical, WordPress does not
-rebuild the URL, so commas in multi-term values stay literal
-(`?product_cat=courses,figma`) both on page 1 and on `/page/N/`.
+Taxonomy filters serialize as **`filter_<taxonomy>=slug,slug`**, not a bare
+`<taxonomy>=`. A bare `?product_cat=courses,cmm` collides with WooCommerce's own
+`product_cat` query var: WordPress 301-redirects it (re-encoding the comma to
+`%2C`) and treats the page as a broken term archive. The namespaced
+`filter_product_cat=courses,cmm` is not a query var, so there is no redirect, no
+404, and pagination keeps a stable pretty `/page/N/` form with literal commas.
 
 ## Known limitations
 
-Two instances that expose the **same taxonomy** share a single `?<taxonomy>=`
-URL query namespace: both restore their state from that one param on load, and
+Two instances that expose the **same taxonomy** share a single
+`?filter_<taxonomy>=` URL param: both restore their state from it on load, and
 each fires its own request on load. Use different taxonomies (or
 `sync_filters_url="false"` on one) if that double request is a problem.
 

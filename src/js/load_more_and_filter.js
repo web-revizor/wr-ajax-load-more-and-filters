@@ -214,10 +214,14 @@ jQuery(function ($) {
             state.search = urlParams.get('filter_search');
         }
 
+        // Taxonomy filters are namespaced `filter_<taxonomy>=` so they never
+        // collide with a real WordPress / WooCommerce query var (a bare
+        // ?product_cat=a,b gets 301-redirected and re-encoded).
         var taxonomies = this.knownTaxonomies();
         Object.keys(taxonomies).forEach(function (t) {
-            if (urlParams.has(t)) {
-                var slugs = urlParams.get(t).split(',').filter(Boolean);
+            var key = 'filter_' + t;
+            if (urlParams.has(key)) {
+                var slugs = urlParams.get(key).split(',').filter(Boolean);
                 if (slugs.length) {
                     state.category[t] = slugs;
                 }

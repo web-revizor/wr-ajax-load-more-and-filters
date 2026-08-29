@@ -85,34 +85,13 @@ class WRALM_Query_Config {
 
         $c->paged = self::current_paged();
 
+        // The plugin's own taxonomy filters ride in namespaced `filter_<tax>=`
+        // params (see filter_query_args()), so a term in the queried object here
+        // is always a genuine archive scope, never one of our filters.
         $term = get_queried_object();
-        if ( $term instanceof WP_Term
-            // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-            && ! isset( $_GET[ $term->taxonomy ] ) ) {
-            // Only a term from the PATH (a real /category/x/ archive) becomes
-            // fixed scope. A term WooCommerce/WP elevated from a ?product_cat=
-            // query param is the user's own filter — AND-ing it on top of their
-            // tax_query would double-scope. The page is still an archive, so
-            // archive_context is left untouched.
+        if ( $term instanceof WP_Term ) {
             $c->archive_term_id  = (int) $term->term_id;
             $c->archive_taxonomy = (string) $term->taxonomy;
-        }
-
-        // A faceted filter URL (?product_cat=courses,figma) 404s the main query
-        // when the comma-joined value matches no single term, which flips
-        // archive_context off and pagination to ?paged=N. WordPress then
-        // canonical-redirects that back to /page/N/ (re-encoding the commas),
-        // so the pagination URL flaps between two forms. If any query-string
-        // key is a real taxonomy and we're not on a singular / front page, this
-        // is that archive — keep pretty /page/N/ pagination.
-        if ( ! $c->archive_context && ! is_singular() && ! is_front_page() ) {
-            // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-            foreach ( array_keys( (array) $_GET ) as $gk ) {
-                if ( taxonomy_exists( sanitize_key( $gk ) ) ) {
-                    $c->archive_context = true;
-                    break;
-                }
-            }
         }
 
         return $c;
@@ -350,8 +329,10 @@ class WRALM_Query_Config {
      */
     public function filter_query_args() {
         $args = array();
+        // Namespaced `filter_<taxonomy>` — a bare ?product_cat=a,b collides with
+        // WooCommerce's own query var and gets 301-redirected + re-encoded.
         foreach ( $this->tax_filters as $taxonomy => $slugs ) {
-            $args[ $taxonomy ] = implode( ',', $slugs );
+            $args[ 'filter_' . $taxonomy ] = implode( ',', $slugs );
         }
         if ( '' !== $this->search ) {
             $args['filter_search'] = $this->search;
