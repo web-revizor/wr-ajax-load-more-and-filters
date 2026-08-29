@@ -110,8 +110,20 @@ jQuery(function ($) {
             }
             $panel.data('wralmBound', true);
 
-            $panel.on('click', '.wr-filters__item', function () {
-                toggleFilterButton($panel, $(this));
+            $panel.on('click', '.wr-filters__item', function (e) {
+                var $btn = $(this);
+
+                // Clicking "All" while it is already the only active filter is a
+                // no-op — swallow the submit instead of re-querying the same
+                // unfiltered list (and bouncing to page 1).
+                var termActive = $panel.find('.wr-filters__item.is-active')
+                    .not('.wr-filters__item--all').length > 0;
+                if ($btn.hasClass('wr-filters__item--all') && $btn.hasClass('is-active') && !termActive) {
+                    e.preventDefault();
+                    return;
+                }
+
+                toggleFilterButton($panel, $btn);
             });
 
             $panel.on('click', '.wr-filters__clear', function () {
