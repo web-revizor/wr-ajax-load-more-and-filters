@@ -69,11 +69,11 @@ export function FiltersTab({ taxonomies, filters, setFilters }: Props) {
             />
 
             <Input
-              label='Filter row classes'
+              label='Filter row classes (extra, added to .wr-filters__list)'
               name={'filter_row_classes'}
               id='filter_row_classes'
               value={filters.filterRowClasses}
-              placeholder='filter_row'
+              placeholder='my-row-class'
               onChange={(v) => update('filterRowClasses', v.target.value)}
             />
 
@@ -108,11 +108,11 @@ export function FiltersTab({ taxonomies, filters, setFilters }: Props) {
             />
 
             <Input
-              label='Filter item classes'
+              label='Filter item classes (extra, added to each .wr-filters__item)'
               name={'filter_item_classes'}
               id='filter_item_classes'
               value={filters.filterItemClasses}
-              placeholder='filter_item'
+              placeholder='my-item-class'
               onChange={(v) => update('filterItemClasses', v.target.value)}
             />
 

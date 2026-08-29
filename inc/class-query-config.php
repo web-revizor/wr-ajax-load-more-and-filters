@@ -43,7 +43,7 @@ class WRALM_Query_Config {
             'post_type'         => 'post',
             'posts_per_page'    => '10',
             'type_pagination'   => 'default',
-            'row_classes'       => 'posts_row',
+            'row_classes'       => '',
             'load_more_label'   => __( 'Show more', 'wr-ajax-load-more-and-filters' ),
             'load_more_classes' => 'load_more_button',
             'prev_text'         => __( 'Previous', 'wr-ajax-load-more-and-filters' ),

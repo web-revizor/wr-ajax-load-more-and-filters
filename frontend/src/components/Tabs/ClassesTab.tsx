@@ -14,18 +14,18 @@ export function ClassesTab({classes, setClasses}: Props) {
 
     return (
         <div className="flex flex-col gap-4">
-            <Input label={'Row classes'}
+            <Input label={'Row classes (extra, added to .wr-posts__list)'}
                    id="row_classes"
                    name={'row_classes'}
                    value={classes.rowClasses}
-                   placeholder="posts_row"
+                   placeholder="my-list-class"
                    onChange={(v) => update('rowClasses', v.target.value)}/>
 
-            <Input label={'Load more button classes'}
+            <Input label={'Load more button classes (extra)'}
                    id="load_more_classes"
                    name={'load_more_classes'}
                    value={classes.loadMoreClasses}
-                   placeholder="load_more_button"
+                   placeholder="my-button-class"
                    onChange={(v) => update('loadMoreClasses', v.target.value)}/>
         </div>
     );
