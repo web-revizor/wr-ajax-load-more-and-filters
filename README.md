@@ -19,6 +19,15 @@ is built by a separate, plain Vite config at the plugin root (`vite.config.js`) 
 run `yarn install && yarn build` from the plugin root after changing
 `src/js/load_more_and_filter.js`.
 
+### Local package
+
+`yarn package` (or `yarn package:fast` to skip `yarn install`) runs
+`build.ps1`: it builds both bundles and produces `<slug>_<version>.zip`
+in the repo root, mirroring the CI workflow — the exclude list is parsed
+straight out of `.github/workflows/build.yml`, the slug comes from
+`gh repo view`, and the version from the plugin header. On push to
+`main`, CI does the same and publishes it as a GitHub Release `v<version>`.
+
 ### Pagination:
 
 - List

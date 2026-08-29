@@ -1,2 +1,7 @@
 /.idea/
 node_modules/
+
+# Local plugin package (produced by the CI build / manual packaging)
+/plugin-build/
+/*.zip
+/changelog.txt
