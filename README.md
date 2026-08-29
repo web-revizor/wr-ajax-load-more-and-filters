@@ -223,12 +223,41 @@ Both default to `"true"`. `update_url` still works as a deprecated alias: when
 set without either `sync_*` attribute it applies to both, so an existing
 `update_url="false"` keeps its old meaning. An explicit `sync_*` attribute wins.
 
-Fixes a bug where pagination never wrote the page number to the URL (the
-address bar stayed identical across pages 2, 3, …). It now does when
-`sync_pagination_url` is on.
-
 The dead `data-update-url` attribute on `.ajax_filters_wrapper` and the unused
 `update_url` field on `WRALM_Filter_Config` are removed.
+
+### URL sync is now fully two-way
+
+- Pagination writes the page to the URL (`/page/N/` on archives, else
+  `?paged=N`); it never did before — the address bar stayed identical across
+  pages 2, 3, …
+- The server returns the exact `canonical_url` for the current state (filters +
+  page); the script pushes that verbatim, so filter + page + pretty/query
+  format never drift.
+- **Back / Forward** re-render the list to match the address bar (new
+  `popstate` handling), and the initial load restores both filters **and** the
+  page from the URL.
+- A filter / search / sort change always resets pagination to page 1.
+
+### `allCategories` ("All") button
+
+- Clicking **All** now clears only the category filters (buttons + selects) —
+  not the search field, not the sort — and re-queries. It also becomes active
+  automatically when the last active filter is removed, including in
+  single-select (`multiply_filter="false"`) mode, where clicking the active
+  term now deselects it.
+- The separate **Clear Filters** button (`enable_clear_button`) still wipes
+  everything: filters, search, and selects.
+
+### Filter buttons no longer hide the "current" term
+
+The filter panel used to omit the button for `get_queried_object()` (the term
+you were "already browsing"). On a WooCommerce faceted URL (`?product_cat=…`)
+WordPress elevates that param into the main query, so the button for an active
+filter disappeared and its state could not be restored. Every term button is
+now always rendered. `from_atts` also stops treating a `?taxonomy=slug` query
+param as an archive context (no more stray pretty `/page/N/` links on such
+pages).
 
 ## Known limitations
 

@@ -87,8 +87,19 @@ class WRALM_Query_Config {
 
         $term = get_queried_object();
         if ( $term instanceof WP_Term ) {
-            $c->archive_term_id  = (int) $term->term_id;
-            $c->archive_taxonomy = (string) $term->taxonomy;
+            // A term that arrived via a query-string param (?product_cat=shoes)
+            // is one of THIS plugin's own filters that WordPress / WooCommerce
+            // elevated into the main query — not a real archive. Treating it as
+            // archive scope drops its filter button from the panel and emits
+            // pretty /page/N/ links on a page that will 404 on them.
+            // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+            $from_query_string = isset( $_GET[ $term->taxonomy ] );
+            if ( $from_query_string ) {
+                $c->archive_context = false;
+            } else {
+                $c->archive_term_id  = (int) $term->term_id;
+                $c->archive_taxonomy = (string) $term->taxonomy;
+            }
         }
 
         return $c;
@@ -301,6 +312,23 @@ class WRALM_Query_Config {
         }
 
         return apply_filters( 'wralm_query_args', $args, $this );
+    }
+
+    /**
+     * The active filter state as URL query args — `taxonomy => "slug,slug"`
+     * plus `filter_search` — serialized the SAME way the public script's
+     * buildUrl() does. Fed to WRALM_Pagination for both the pagination link
+     * hrefs and the canonical address-bar URL.
+     */
+    public function filter_query_args() {
+        $args = array();
+        foreach ( $this->tax_filters as $taxonomy => $slugs ) {
+            $args[ $taxonomy ] = implode( ',', $slugs );
+        }
+        if ( '' !== $this->search ) {
+            $args['filter_search'] = $this->search;
+        }
+        return $args;
     }
 
     public function pagination_args( $base, $format, $add_args = array() ) {

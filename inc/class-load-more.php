@@ -72,28 +72,23 @@ class WRALM_Load_More
             $config->base_url
         );
 
-        // preserve non-pagination query args (?filter_search=, custom params) on links
-        $add_args = array();
-        $parsed = wp_parse_url($config->base_url);
-        if (!empty($parsed['query'])) {
-            wp_parse_str($parsed['query'], $add_args);
-            unset($add_args['paged'], $add_args['page']);
-            $add_args = urlencode_deep($add_args);
-        }
+        // Serialize the active filter state the same way the public script does
+        // (taxonomy=slug,slug + filter_search) so the pagination links and the
+        // canonical address-bar URL both carry it. Dropped when filter-URL sync
+        // is off.
+        $add_args = $config->sync_filters_url ? $config->filter_query_args() : array();
 
         $pagination = WRALM_Pagination::links(
             $config->pagination_args($base, $format, $add_args) + array('total' => $query->max_num_pages)
         );
 
-        $pag_base = isset($GLOBALS['wp_rewrite']->pagination_base) ? $GLOBALS['wp_rewrite']->pagination_base : 'page';
-
         wp_send_json(array(
             'html' => $html,
             'pagination' => $pagination,
             'max_page' => $query->max_num_pages,
-            'base_url' => $config->sync_filters_url
-                ? preg_replace('#/(?:page|' . preg_quote($pag_base, '#') . ')/\d+/?$#', '/', $config->base_url)
-                : $config->base_url,
+            // The exact URL the address bar must show for this state (filters +
+            // page). Server-built so the JS never re-implements resolve_base().
+            'canonical_url' => WRALM_Pagination::page_url($base, $format, $config->paged, $add_args),
         ));
     }
 

@@ -60,6 +60,27 @@ class WRALM_Pagination
         return $sync_pagination_url ? esc_url(apply_filters('paginate_links', $link)) : '#';
     }
 
+    /**
+     * The single "URL for page N" builder: substitutes the paginate_links
+     * %_% / %#% placeholders, folds in $add_args, appends the fragment.
+     * Page 1 drops the format segment (no /page/1/, no ?paged=1). Shared by
+     * links() and by WRALM_Load_More for the canonical address-bar URL, so the
+     * two never drift.
+     */
+    public static function page_url($base, $format, $page, $add_args = array(), $fragment = '')
+    {
+        $page = max(1, (int) $page);
+        $link = str_replace('%_%', 1 === $page ? '' : $format, $base);
+        $link = str_replace('%#%', $page, $link);
+        if (!empty($add_args)) {
+            $link = add_query_arg($add_args, $link);
+            // add_query_arg urlencodes commas in multi-term values; keep them
+            // literal so the address bar matches what the public script writes.
+            $link = str_replace(array('%2C', '%2c'), ',', $link);
+        }
+        return $link . $fragment;
+    }
+
     public static function links($args = '')
     {
         global $wp_rewrite;
@@ -152,12 +173,7 @@ class WRALM_Pagination
         $dots = false;
 
         if ($args['prev_next'] && $current && 1 < $current) :
-            $link = str_replace('%_%', 2 == $current ? '' : $args['format'], $args['base']);
-            $link = str_replace('%#%', $current - 1, $link);
-            if ($add_args) {
-                $link = add_query_arg($add_args, $link);
-            }
-            $link .= $args['add_fragment'];
+            $link = self::page_url($args['base'], $args['format'], $current - 1, $add_args, $args['add_fragment']);
             $page_links[] = sprintf(
                 '<a class="prev load_page" href="%s" data-page="%s">%s</a>',
                 self::href($link, $args['sync_pagination_url']),
@@ -178,12 +194,7 @@ class WRALM_Pagination
                 $dots = true;
             else :
                 if ($args['show_all'] || ($n <= $end_size || ($current && $n >= $current - $mid_size && $n <= $current + $mid_size) || $n > $total - $end_size)) :
-                    $link = str_replace('%_%', 1 == $n ? '' : $args['format'], $args['base']);
-                    $link = str_replace('%#%', $n, $link);
-                    if ($add_args) {
-                        $link = add_query_arg($add_args, $link);
-                    }
-                    $link .= $args['add_fragment'];
+                    $link = self::page_url($args['base'], $args['format'], $n, $add_args, $args['add_fragment']);
                     $page_links[] = sprintf(
                         '<a class="page-numbers load_page" href="%s" data-page="%s">%s</a>',
                         self::href($link, $args['sync_pagination_url']),
@@ -199,12 +210,7 @@ class WRALM_Pagination
         endfor;
 
         if ($args['prev_next'] && $current && $current < $total) :
-            $link = str_replace('%_%', $args['format'], $args['base']);
-            $link = str_replace('%#%', $current + 1, $link);
-            if ($add_args) {
-                $link = add_query_arg($add_args, $link);
-            }
-            $link .= $args['add_fragment'];
+            $link = self::page_url($args['base'], $args['format'], $current + 1, $add_args, $args['add_fragment']);
             $page_links[] = sprintf(
                 '<a class="next load_page" href="%s" data-page="%s">%s</a>',
                 self::href($link, $args['sync_pagination_url']),
