@@ -43,6 +43,8 @@ straight out of `.github/workflows/build.yml`, the slug comes from
 
 ### Shortcode Parameters (generate in admin panel)
 
+#### `[all_posts_ajax]` (the list + pagination)
+
 - post_type: post type name
 - posts_per_page: number, can be "-1" for infinity posts on page
 - type_pagination: list/both/default/none
@@ -51,14 +53,30 @@ straight out of `.github/workflows/build.yml`, the slug comes from
 - load_more_classes: string
 - prev_text: string
 - next_text: string
+- update_url: `"true"` | `"false"` (default `"true"`).
+  - `"true"` — pagination `<a>` elements carry real `href`s and the script
+    keeps the current filter / search / page state in the address bar via
+    `history.pushState`. Pretty `/page/N/` pagination URLs are emitted **only**
+    on archive / home / taxonomy contexts (and only with pretty permalinks);
+    everywhere else — static pages, the front page — links are `?paged=N`, which
+    fixes the broken `/page/N/` links WordPress used to 404 on static pages.
+  - `"false"` — pagination `<a>` hrefs are `#` (navigation is driven purely by
+    `data-page`), and the script performs **no** `history.pushState` / URL
+    rewriting. Filter / page state is in-memory only.
 
+Note: sort order (`orderby`) for `[all_posts_ajax]` is controlled from the
+**filters** shortcode via `order_by_options` (see below), not by an attribute
+on `[all_posts_ajax]` itself. The Newest / Oldest direction select and the
+`order_by_options` select both post their value into the same list query.
+
+#### `[all_posts_ajax_filters]` (the filter / search / order panel)
 
 - filter_by_category: boolean
 - filter_row_classes: string
 - filter_item_classes: string
 - filter_item_limit: number
 - filter_expand_label: string
-- filter_expand_class: string
+- filter_expand_class: string (default `filter_expand` — see breaking changes)
 - filter_taxonomy: comma separated string with taxonomy name
 - multiply_filter: boolean
 - enable_clear_button: boolean
@@ -71,11 +89,126 @@ straight out of `.github/workflows/build.yml`, the slug comes from
 - enable_order: boolean
 - label_newest_order: string
 - label_old_order: string
+- order_by_options: comma-separated subset of
+  `date,title,menu_order,rand,price,popularity,rating`. When empty, only the
+  Newest / Oldest direction `<select>` renders. When set, a second `<select>`
+  renders offering those sort keys. `price` / `popularity` / `rating` are only
+  meaningful for `post_type="product"` with WooCommerce active (see WooCommerce
+  section); for other post types they fall back to a sensible default.
+- order_by_labels: comma-separated list, positionally parallel to
+  `order_by_options`, giving the visible label for each option. A missing entry
+  falls back to a prettified version of the key.
+
+## Multiple instances
+
+The two shortcodes are linked by the `filter_id` attribute (default
+`<post_type>_filter`). The admin console writes the same `filter_id` into both
+shortcodes it generates, so a `[all_posts_ajax_filters]` panel drives the
+`[all_posts_ajax]` list that carries the matching `filter_id`.
+
+To run **several independent list + filter pairs on one page**, give each pair
+its own **distinct** `filter_id`:
+
+````
+[all_posts_ajax_filters post_type="post"    filter_id="blog"  filter_by_category="true"]
+[all_posts_ajax          post_type="post"    filter_id="blog"  posts_per_page="6"]
+
+[all_posts_ajax_filters post_type="product" filter_id="shop"  filter_by_category="true"]
+[all_posts_ajax          post_type="product" filter_id="shop"  posts_per_page="12"]
+````
+
+The public script instantiates one controller per `.ajax_row_holder` and scopes
+every selector by `filter_id`, so the panels never cross-talk. All emitted ids
+are now instance-unique:
+
+- `all_posts_filter_<filter_id>` (the `<form>`)
+- `all-post-search-<filter_id>` (the search `<input>`)
+- `js-post-order-<filter_id>` (the direction `<select>`)
+
+The pagination wrapper `<div>` **no longer has an `id`** — target it by the
+class `.pagination_holder` (it still also carries `.load_more_holder`).
+
+## WooCommerce
+
+When `post_type="product"` and WooCommerce is active, `[all_posts_ajax]`:
+
+- Excludes catalog-hidden products automatically, and — when the store option
+  "Hide out of stock items from the catalog" is on — out-of-stock products too
+  (via the `product_visibility` taxonomy).
+- Wraps the card loop in `wc_setup_loop()` / `wc_reset_loop()`, so
+  `wc_get_loop_prop()` and the `$product` global are available inside
+  `all_posts_ajax/product-card.php`.
+- Makes `price` / `popularity` / `rating` real sort options — expose them
+  through the Order tab (`order_by_options`) and they map to the correct
+  WooCommerce meta sort.
+
+WooCommerce's own `woocommerce_product_query` hook and `loop_shop_per_page`
+filter do **not** apply to this custom query — by design. `posts_per_page` is
+taken from the shortcode attribute only.
+
+## New filters / hooks
+
+- `wralm_query_args` — filter. `apply_filters( 'wralm_query_args', array $args, WRALM_Query_Config $config )`.
+  Last chance to alter the `WP_Query` args for both the initial render and the
+  AJAX handler.
+- `wralm_require_nonce` — filter, default `false`. Return `true` to
+  **hard-enforce** the AJAX nonce on `wp_ajax(_nopriv)_loadmore` (a bad / missing
+  nonce then returns `403`). Left `false`, the nonce is checked but not required
+  (soft), so existing themes keep working.
+- `wralm_extend_all_search` — filter, default `false`. Return `true` to restore
+  the pre-1.5.0 behaviour where the ACF search extension applied to **every**
+  front-end search, not only WRALM shortcode queries.
+
+## Upgrading to 1.5.0 — breaking changes
+
+Existing shortcodes keep rendering and behaving the same. The following affect
+themes / custom CSS / custom JS that reached into the plugin's markup:
+
+- **Instance-suffixed ids.** Themes or scripts targeting `#all_posts_filter`,
+  `#all-post-search` or `#js-post-order` must switch to the classes
+  `.all_posts_form`, `.all-post-search`, `.js-post-order` (or read the
+  `[data-filter-id]` attribute). Those ids are now suffixed with the
+  `filter_id`.
+- **`filter_expand_class` default changed** from the literal `filter_expand_class`
+  to `filter_expand`. CSS targeting `.filter_expand_class` must either update to
+  `.filter_expand` or pass `filter_expand_class="filter_expand_class"` explicitly
+  on the shortcode.
+- **Pagination wrapper lost its `id`.** The wrapper `<div>` no longer has
+  `id="pagination_holder"` — target `.pagination_holder` (it still also carries
+  `.load_more_holder`).
+- **"All" button re-activation.** In `multiply_filter="true"` mode, deactivating
+  one of several active filter buttons now re-activates the "All" button **only
+  when no other filter remains active**. Previously it re-activated "All"
+  alongside still-active filters.
+- **ACF search is now scoped.** The site-wide `posts_search` ACF extension now
+  applies **only** to WRALM shortcode queries. To restore the old global
+  behaviour: `add_filter( 'wralm_extend_all_search', '__return_true' );`.
+- **Per-term counts are still raw.** The count shown next to each individual
+  filter button is still the raw WordPress taxonomy term count and may include
+  hidden / catalog-invisible posts. Only the "All (N)" count is corrected to
+  match the actual result set.
+
+## Known limitations
+
+Two instances that expose the **same taxonomy** share a single `?<taxonomy>=`
+URL query namespace: both restore their state from that one param on load, and
+each fires its own request on load. Use different taxonomies (or `update_url="false"`
+on one) if that double request is a problem.
+
+## Deployment / post-deploy QA
+
+After deploying, run the manual regression checklist in
+`docs/superpowers/plans/2026-08-29-wralm-fixes-and-improvements.md` **Appendix A**
+(35 rows; the `(WC)` rows need WooCommerce + a `product-card.php` template).
 
 ## JQuery events
 
 - AjaxPaginationDone
 - AjaxFilterDone
+
+Both still fire on `document` after every request (unchanged public API). They
+also fire on the instance's `.ajax_row_holder` element for per-instance
+listeners.
 
 ### Example
 
