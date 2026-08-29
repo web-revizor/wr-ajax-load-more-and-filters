@@ -197,6 +197,7 @@ jQuery(function ($) {
     Instance.prototype.buildData = function (category) {
         return {
             action: 'loadmore',
+            nonce: params.nonce,
             page: this.page,
             posts_per_page: this.rowAttr('posts-per-page'),
             post_type: this.rowAttr('posts-type'),

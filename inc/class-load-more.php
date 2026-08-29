@@ -35,6 +35,7 @@ class WRALM_Load_More
             'posts' => $wp_query->query_vars,
             'current_page' => get_query_var('paged') ? get_query_var('paged') : 1,
             'max_page' => $wp_query->max_num_pages,
+            'nonce' => wp_create_nonce('wralm_loadmore'),
         ));
 
         wp_enqueue_script('my_loadmore');
@@ -96,5 +97,15 @@ class WRALM_Load_More
         ));
     }
 
-    private function maybe_check_nonce() {} // Phase 10 fills this in
+    private function maybe_check_nonce()
+    {
+        $nonce = isset($_POST['nonce']) && is_string($_POST['nonce'])
+            ? sanitize_text_field(wp_unslash($_POST['nonce']))
+            : '';
+        $valid = $nonce && wp_verify_nonce($nonce, 'wralm_loadmore');
+
+        if (!$valid && apply_filters('wralm_require_nonce', false)) {
+            wp_send_json_error(array('message' => 'bad nonce'), 403);
+        }
+    }
 }
