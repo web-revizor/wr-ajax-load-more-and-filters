@@ -76,14 +76,11 @@ class WRALM_Shortcode
 
     public function render_filters($atts)
     {
-        global $load_more_variables;
-
+        // $config is read directly by inc/views/filter.php and inc/views/order.php
+        // (both required into this scope below).
         $config = WRALM_Filter_Config::from_atts($atts);
-        $load_more_variables = $config->to_legacy_array();
 
-        $filter_id = $config->filter_id;
-
-        $results = '<div class="ajax_filters_wrapper" data-filter-id="' . esc_attr($filter_id) . '">';
+        $results = '<div class="ajax_filters_wrapper" data-filter-id="' . esc_attr($config->filter_id) . '">';
 
         $need_filter_view = in_array('true', array(
             (string) $config->filter_by_category,
