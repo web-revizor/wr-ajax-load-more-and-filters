@@ -44,7 +44,9 @@ export function MainTab({ postTypes, main, setMain }: Props) {
         <p className='text-[12px] text-white/60'>
           WooCommerce detected on the server: catalog-hidden / out-of-stock
           products are excluded automatically; use the Order tab for price /
-          popularity / rating sorting.
+          popularity / rating sorting. Posts per page is taken from the
+          WooCommerce catalog settings — the field below is ignored for
+          products.
         </p>
       )}
 

@@ -58,7 +58,7 @@ class WRALM_Query_Config {
         $c = new self();
 
         $c->post_type         = sanitize_key( $a['post_type'] );
-        $c->posts_per_page    = (int) $a['posts_per_page'];
+        $c->posts_per_page    = self::resolve_posts_per_page( $c->post_type, (int) $a['posts_per_page'] );
         $c->pagination_type   = sanitize_key( $a['type_pagination'] );
         $c->row_classes       = sanitize_text_field( $a['row_classes'] );
         $c->load_more_label   = sanitize_text_field( $a['load_more_label'] );
@@ -149,6 +149,17 @@ class WRALM_Query_Config {
         return in_array( $value, self::ORDERBY_WHITELIST, true ) ? $value : 'date';
     }
 
+    /**
+     * For a product list, ignore the shortcode / request value and use the
+     * WooCommerce catalog per-page setting. Everything else keeps its value.
+     */
+    public static function resolve_posts_per_page( $post_type, $requested ) {
+        if ( class_exists( 'WRALM_Woo' ) && WRALM_Woo::is_product_query( $post_type ) ) {
+            return WRALM_Woo::per_page();
+        }
+        return $requested;
+    }
+
     /** Front page uses ?page, everything else ?paged. */
     public static function current_paged() {
         $paged = (int) get_query_var( 'paged' );
@@ -203,6 +214,10 @@ class WRALM_Query_Config {
         if ( $c->posts_per_page < 1 || $c->posts_per_page > $max ) {
             $c->posts_per_page = $max;
         }
+
+        // For products the WooCommerce catalog setting wins outright — the
+        // client value (and the clamp above) is irrelevant.
+        $c->posts_per_page = self::resolve_posts_per_page( $c->post_type, $c->posts_per_page );
         $c->pagination_type = isset( $req['pagination_type'] ) && is_string( $req['pagination_type'] ) ? sanitize_key( $req['pagination_type'] ) : 'default';
         $c->load_more_classes = isset( $req['more_classes'] ) && is_string( $req['more_classes'] ) ? sanitize_text_field( $req['more_classes'] ) : '';
         $c->load_more_label   = isset( $req['more_label'] ) && is_string( $req['more_label'] ) ? sanitize_text_field( $req['more_label'] ) : '';

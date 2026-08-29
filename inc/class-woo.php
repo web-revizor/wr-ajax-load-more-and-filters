@@ -34,6 +34,30 @@ class WRALM_Woo {
 		);
 	}
 
+	/**
+	 * Products-per-page from the WooCommerce catalog settings, ignoring any
+	 * shortcode / request value. Mirrors what a normal shop loop uses:
+	 * the `loop_shop_per_page` filter over columns * rows.
+	 */
+	public static function per_page() {
+		// Prefer WC's own helpers (they honour theme support args); fall back to
+		// the raw catalog options, which are available even on admin-ajax where
+		// wc-template-functions.php may not be loaded.
+		if ( function_exists( 'wc_get_default_products_per_row' )
+			&& function_exists( 'wc_get_default_product_rows_per_page' ) ) {
+			$default = (int) wc_get_default_products_per_row() * (int) wc_get_default_product_rows_per_page();
+		} else {
+			$cols    = (int) get_option( 'woocommerce_catalog_columns', 4 );
+			$rows    = (int) get_option( 'woocommerce_catalog_rows', 4 );
+			$default = $cols * $rows;
+		}
+		if ( $default < 1 ) {
+			$default = 16;
+		}
+		$per_page = (int) apply_filters( 'loop_shop_per_page', $default );
+		return $per_page > 0 ? $per_page : $default;
+	}
+
 	public static function orderby_args( $orderby, $order ) {
 		switch ( $orderby ) {
 			case 'price':
