@@ -73,13 +73,10 @@ class WRALM_Pagination
         $link = str_replace('%_%', 1 === $page ? '' : $format, $base);
         $link = str_replace('%#%', $page, $link);
         if (!empty($add_args)) {
+            // add_query_arg percent-encodes commas in multi-term values
+            // (filter_product_cat=a%2Cb) — kept encoded on purpose. URLSearchParams
+            // decodes it back on the JS side when restoring state.
             $link = add_query_arg($add_args, $link);
-            // add_query_arg percent-encodes the commas in multi-term values
-            // (product_cat=a%2Cb). Restore them: the public script writes and
-            // reads literal commas, and with pretty /page/N/ (see
-            // WRALM_Query_Config::from_atts) the path is already canonical so
-            // redirect_canonical never rebuilds the query to re-encode them.
-            $link = str_replace(array('%2C', '%2c'), ',', $link);
         }
         return $link . $fragment;
     }
