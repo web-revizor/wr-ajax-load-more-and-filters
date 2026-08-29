@@ -22,7 +22,7 @@ class WRALM_Shortcode
         $wp_query = new WP_Query($config->wp_query_args());
 
         list($base, $format) = WRALM_Pagination::resolve_base(
-            $config->update_url,
+            $config->sync_pagination_url,
             $config->archive_context,
             get_pagenum_link()
         );
@@ -74,10 +74,8 @@ class WRALM_Shortcode
         $load_more_variables = $config->to_legacy_array();
 
         $filter_id = $config->filter_id;
-        $wrap_attr = ' data-filter-id="' . esc_attr($filter_id) . '"'
-            . ' data-update-url="' . esc_attr($config->update_url ? 'true' : 'false') . '"';
 
-        $results = '<div class="ajax_filters_wrapper"' . $wrap_attr . '>';
+        $results = '<div class="ajax_filters_wrapper" data-filter-id="' . esc_attr($filter_id) . '">';
 
         $need_filter_view = in_array('true', array(
             (string) $config->filter_by_category,

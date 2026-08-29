@@ -60,16 +60,24 @@ straight out of `.github/workflows/build.yml`, the slug comes from
   filter panel's order `<select>` has no value. The filter panel's
   `order_by_options` still drives the runtime sort dropdown; `orderby` only sets
   the starting value for the list itself.
-- update_url: `"true"` | `"false"` (default `"true"`).
-  - `"true"` — pagination `<a>` elements carry real `href`s and the script
-    keeps the current filter / search / page state in the address bar via
-    `history.pushState`. Pretty `/page/N/` pagination URLs are emitted **only**
-    on archive / home / taxonomy contexts (and only with pretty permalinks);
-    everywhere else — static pages, the front page — links are `?paged=N`, which
-    fixes the broken `/page/N/` links WordPress used to 404 on static pages.
-  - `"false"` — pagination `<a>` hrefs are `#` (navigation is driven purely by
-    `data-page`), and the script performs **no** `history.pushState` / URL
-    rewriting. Filter / page state is in-memory only.
+- sync_filters_url: `"true"` | `"false"` (default `"true"`). When `"true"`,
+  filtering / search / sorting write the current filter state to the address bar
+  via `history.pushState` (params `<taxonomy>=slug`, `filter_search`). When
+  `"false"`, those actions never touch the URL — filter state is in-memory only.
+- sync_pagination_url: `"true"` | `"false"` (default `"true"`). When `"true"`,
+  pagination `<a>` elements carry real `href`s and clicking a numbered / prev /
+  next link pushes that URL into the address bar. Pretty `/page/N/` URLs are
+  emitted **only** on archive / home / taxonomy contexts (and only with pretty
+  permalinks); everywhere else — static pages, the front page — links are
+  `?paged=N`, which fixes the broken `/page/N/` links WordPress used to 404 on
+  static pages. When `"false"`, pagination hrefs are `#` (navigation driven purely
+  by `data-page`) and no `history.pushState` happens. The "Show more" button
+  never syncs the URL regardless (it accumulates pages; a reload would render
+  only the last one).
+- update_url: **deprecated** alias. When set and neither `sync_filters_url` nor
+  `sync_pagination_url` is given, it applies to both (so a pre-1.5.1
+  `update_url="false"` keeps its old meaning). An explicit `sync_*` attribute
+  always wins.
 
 Note: `orderby` on `[all_posts_ajax]` only sets the **initial** sort of the
 list. At runtime the sort is driven by the **filters** shortcode — the Newest /
@@ -203,12 +211,31 @@ themes / custom CSS / custom JS that reached into the plugin's markup:
   (`wralm_vcount_<post_type>`) is shared across languages, so on WPML / Polylang
   the "All (N)" number is the same in every language.
 
+## Upgrading to 1.5.1 — `update_url` split
+
+`update_url` is split into two independent attributes on `[all_posts_ajax]`:
+
+- `sync_filters_url` — filtering / search / sorting → address bar.
+- `sync_pagination_url` — pagination clicks → address bar, plus real vs `#`
+  pagination hrefs and the pretty `/page/N/` format on archives.
+
+Both default to `"true"`. `update_url` still works as a deprecated alias: when
+set without either `sync_*` attribute it applies to both, so an existing
+`update_url="false"` keeps its old meaning. An explicit `sync_*` attribute wins.
+
+Fixes a bug where pagination never wrote the page number to the URL (the
+address bar stayed identical across pages 2, 3, …). It now does when
+`sync_pagination_url` is on.
+
+The dead `data-update-url` attribute on `.ajax_filters_wrapper` and the unused
+`update_url` field on `WRALM_Filter_Config` are removed.
+
 ## Known limitations
 
 Two instances that expose the **same taxonomy** share a single `?<taxonomy>=`
 URL query namespace: both restore their state from that one param on load, and
-each fires its own request on load. Use different taxonomies (or `update_url="false"`
-on one) if that double request is a problem.
+each fires its own request on load. Use different taxonomies (or
+`sync_filters_url="false"` on one) if that double request is a problem.
 
 ## Deployment / post-deploy QA
 

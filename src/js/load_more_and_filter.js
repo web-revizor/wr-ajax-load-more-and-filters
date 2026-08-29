@@ -108,7 +108,8 @@ jQuery(function ($) {
         this.$buttons = this.$filters.find('.js-category-filter');
         this.$selects = this.$filters.find('.js-category-filter-select');
 
-        this.updateUrl = String(this.$row.data('update-url')) !== 'false';
+        this.syncFiltersUrl = String(this.$row.data('sync-filters-url')) !== 'false';
+        this.syncPaginationUrl = String(this.$row.data('sync-pagination-url')) !== 'false';
         this.archiveContext = String(this.$row.data('archive-context')) === 'true';
         this.initPage = parseInt($holder.data('init-page'), 10) || 1;
 
@@ -219,7 +220,8 @@ jQuery(function ($) {
             prev_text: this.rowAttr('prev-text'),
             next_text: this.rowAttr('next-text'),
             filter_id: this.filterId,
-            update_url: this.updateUrl ? 'true' : 'false',
+            sync_filters_url: this.syncFiltersUrl ? 'true' : 'false',
+            sync_pagination_url: this.syncPaginationUrl ? 'true' : 'false',
             archive_context: this.archiveContext ? 'true' : 'false',
             base_url: window.location.pathname + window.location.search
         };
@@ -241,12 +243,24 @@ jQuery(function ($) {
         var category = this.collectCategories();
         var url = this.buildUrl(category); // absolute-path URL this action navigates to
         var data = this.buildData(category);
-        if (this.updateUrl) {
+        if (this.syncFiltersUrl) {
             // send the POST-action URL so the response's pagination hrefs embed
             // the NEW filter state, not the pre-action one.
             data.base_url = url;
         }
-        var pushUrl = this.updateUrl && opts.pushUrl ? url : null;
+
+        // Which URL, if any, to push into the address bar after this action:
+        //   - pagination click  -> opts.pushHref, the clicked link's own href
+        //     (already the right /page/N/ or ?paged=N form, active filters
+        //     folded in server-side), gated by syncPaginationUrl;
+        //   - filter / search / sort -> the rebuilt filter-state url, gated by
+        //     syncFiltersUrl.
+        var pushUrl = null;
+        if (opts.pushHref) {
+            pushUrl = this.syncPaginationUrl && opts.pushHref !== '#' ? opts.pushHref : null;
+        } else if (opts.pushUrl) {
+            pushUrl = this.syncFiltersUrl ? url : null;
+        }
 
         this.$holder.css('opacity', '0.5');
 
@@ -289,10 +303,14 @@ jQuery(function ($) {
     };
 
     Instance.prototype.paginate = function ($link) {
+        var isLoadMore = $link.hasClass('load_more');
         this.request({
             page: parseInt($link.attr('data-page'), 10) || 1,
-            clearRow: !$link.hasClass('load_more'),
-            pushUrl: true,
+            clearRow: !isLoadMore,
+            // "Show more" accumulates rows across pages; pushing ?paged=N there
+            // would make a reload render only the last page. Only real
+            // pagination (numbered / prev / next) syncs the URL.
+            pushHref: isLoadMore ? null : $link.attr('href'),
             emptyHtml: '',
             event: 'AjaxPaginationDone'
         });

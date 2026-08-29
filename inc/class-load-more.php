@@ -67,7 +67,7 @@ class WRALM_Load_More
         $html = ob_get_clean();
 
         list($base, $format) = WRALM_Pagination::resolve_base(
-            $config->update_url,
+            $config->sync_pagination_url,
             $config->archive_context,
             $config->base_url
         );
@@ -91,7 +91,7 @@ class WRALM_Load_More
             'html' => $html,
             'pagination' => $pagination,
             'max_page' => $query->max_num_pages,
-            'base_url' => $config->update_url
+            'base_url' => $config->sync_filters_url
                 ? preg_replace('#/(?:page|' . preg_quote($pag_base, '#') . ')/\d+/?$#', '/', $config->base_url)
                 : $config->base_url,
         ));

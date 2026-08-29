@@ -19,7 +19,8 @@ class WRALM_Query_Config {
     public $prev_text = '';
     public $next_text = '';
     public $filter_id = '';
-    public $update_url = true;
+    public $sync_filters_url = true;
+    public $sync_pagination_url = true;
     public $archive_context = false;
     public $tax_filters = array();
     public $archive_term_id = 0;
@@ -45,7 +46,9 @@ class WRALM_Query_Config {
             'prev_text'         => __( 'Previous', 'wr-ajax-load-more-and-filters' ),
             'next_text'         => __( 'Next', 'wr-ajax-load-more-and-filters' ),
             'filter_id'         => '',
-            'update_url'        => 'true',
+            'update_url'         => '', // deprecated alias for both sync_* flags
+            'sync_filters_url'    => '',
+            'sync_pagination_url' => '',
             'orderby'           => 'date',
         );
     }
@@ -62,7 +65,11 @@ class WRALM_Query_Config {
         $c->load_more_classes = sanitize_text_field( $a['load_more_classes'] );
         $c->prev_text         = sanitize_text_field( $a['prev_text'] );
         $c->next_text         = sanitize_text_field( $a['next_text'] );
-        $c->update_url        = ( 'false' !== strtolower( (string) $a['update_url'] ) );
+        list( $c->sync_filters_url, $c->sync_pagination_url ) = self::resolve_sync_flags(
+            $a['sync_filters_url'],
+            $a['sync_pagination_url'],
+            $a['update_url']
+        );
         $c->orderby           = self::sanitize_orderby( $a['orderby'] );
 
         $c->filter_id = $a['filter_id'] !== ''
@@ -85,6 +92,32 @@ class WRALM_Query_Config {
         }
 
         return $c;
+    }
+
+    /**
+     * Resolve the [ sync_filters_url, sync_pagination_url ] pair.
+     * Each flag: its own attribute wins; otherwise the deprecated `update_url`
+     * alias applies to both; otherwise default true. Any value other than the
+     * literal string "false" (case-insensitive) counts as on.
+     *
+     * @return array [ bool $sync_filters_url, bool $sync_pagination_url ]
+     */
+    public static function resolve_sync_flags( $filters_raw, $pagination_raw, $alias_raw ) {
+        $filters    = strtolower( trim( (string) $filters_raw ) );
+        $pagination = strtolower( trim( (string) $pagination_raw ) );
+        $alias      = strtolower( trim( (string) $alias_raw ) );
+
+        $pick = function ( $own ) use ( $alias ) {
+            if ( '' !== $own ) {
+                return 'false' !== $own;
+            }
+            if ( '' !== $alias ) {
+                return 'false' !== $alias;
+            }
+            return true;
+        };
+
+        return array( $pick( $filters ), $pick( $pagination ) );
     }
 
     public static function sanitize_orderby( $value ) {
@@ -114,7 +147,8 @@ class WRALM_Query_Config {
             'data-cat-id'           => (string) $this->archive_term_id,
             'data-cat-taxonomy'     => $this->archive_taxonomy,
             'data-orderby'          => $this->orderby,
-            'data-update-url'       => $this->update_url ? 'true' : 'false',
+            'data-sync-filters-url'    => $this->sync_filters_url ? 'true' : 'false',
+            'data-sync-pagination-url' => $this->sync_pagination_url ? 'true' : 'false',
             'data-archive-context'  => $this->archive_context ? 'true' : 'false',
         );
     }
@@ -151,7 +185,14 @@ class WRALM_Query_Config {
         $c->prev_text = isset( $req['prev_text'] ) && is_string( $req['prev_text'] ) ? sanitize_text_field( $req['prev_text'] ) : '';
         $c->next_text = isset( $req['next_text'] ) && is_string( $req['next_text'] ) ? sanitize_text_field( $req['next_text'] ) : '';
         $c->filter_id = isset( $req['filter_id'] ) && is_string( $req['filter_id'] ) ? sanitize_key( $req['filter_id'] ) : '';
-        $c->update_url = ! ( isset( $req['update_url'] ) && is_string( $req['update_url'] ) && 'false' === strtolower( $req['update_url'] ) );
+        $req_flag = function ( $key ) use ( $req ) {
+            return isset( $req[ $key ] ) && is_string( $req[ $key ] ) ? strtolower( trim( $req[ $key ] ) ) : '';
+        };
+        list( $c->sync_filters_url, $c->sync_pagination_url ) = self::resolve_sync_flags(
+            $req_flag( 'sync_filters_url' ),
+            $req_flag( 'sync_pagination_url' ),
+            $req_flag( 'update_url' )
+        );
         $c->archive_context = isset( $req['archive_context'] ) && is_string( $req['archive_context'] ) && 'true' === strtolower( $req['archive_context'] );
 
         $c->paged = isset( $req['page'] ) && is_scalar( $req['page'] ) ? max( 1, absint( $req['page'] ) ) : 1;
@@ -268,7 +309,7 @@ class WRALM_Query_Config {
             'format'            => $format,
             'current'           => $this->paged,
             'type'              => $this->pagination_type,
-            'update_url'        => $this->update_url,
+            'sync_pagination_url' => $this->sync_pagination_url,
             'add_args'          => $add_args,
             'load_more_classes' => $this->load_more_classes,
             'load_more_label'   => $this->load_more_label !== '' ? $this->load_more_label : __( 'Show more', 'wr-ajax-load-more-and-filters' ),
