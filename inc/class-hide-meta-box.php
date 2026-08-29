@@ -13,11 +13,36 @@ class WRALM_Hide_Meta_Box
     const META_KEY = 'all_posts_ajax_hide';
     const NONCE_ACTION = 'apa_hide_meta_box';
     const NONCE_NAME = 'apa_hide_meta_box_nonce';
+    const CLEANUP_FLAG = 'wralm_hide_meta_cleaned';
 
     public function __construct()
     {
         add_action('add_meta_boxes', [$this, 'add_meta_box']);
         add_action('save_post', [$this, 'save_meta_box']);
+        add_action('init', [$this, 'maybe_cleanup_legacy_meta']);
+    }
+
+    /**
+     * One-time removal of legacy `all_posts_ajax_hide` rows that hold anything
+     * other than '1'. Earlier versions wrote '0' on every post save, bloating
+     * wp_postmeta and forcing the list query into a two-LEFT-JOIN meta_query.
+     * Now only '1' rows exist (unchecked => delete_post_meta), so the query is a
+     * single NOT EXISTS. Runs once per site, gated by an autoloaded flag.
+     */
+    public function maybe_cleanup_legacy_meta()
+    {
+        if (get_option(self::CLEANUP_FLAG)) {
+            return;
+        }
+
+        global $wpdb;
+        $wpdb->query($wpdb->prepare(
+            "DELETE FROM {$wpdb->postmeta} WHERE meta_key = %s AND meta_value <> %s",
+            self::META_KEY,
+            '1'
+        ));
+
+        update_option(self::CLEANUP_FLAG, 1);
     }
 
     public function add_meta_box()
@@ -71,7 +96,12 @@ class WRALM_Hide_Meta_Box
             return;
         }
 
-        $value = isset($_POST['all_posts_ajax_hide']) ? '1' : '0';
-        update_post_meta($post_id, self::META_KEY, $value);
+        // Store the meta ONLY when hidden. Writing '0' for every unchecked save
+        // bloats wp_postmeta and defeats the NOT EXISTS lookup in the list query.
+        if (isset($_POST['all_posts_ajax_hide'])) {
+            update_post_meta($post_id, self::META_KEY, '1');
+        } else {
+            delete_post_meta($post_id, self::META_KEY);
+        }
     }
 }

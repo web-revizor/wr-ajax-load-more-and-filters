@@ -244,9 +244,11 @@ class WRALM_Query_Config {
     }
 
     private function hide_meta_query() {
+        // The "Hide from list" meta is stored ONLY when hidden (value '1'); an
+        // unchecked post has no row, and WRALM_Hide_Meta_Box::maybe_cleanup_legacy_meta()
+        // drops legacy '0' rows once per site. So "not hidden" is a single
+        // NOT EXISTS on the key — one LEFT JOIN instead of the old OR pair.
         return array(
-            'relation' => 'OR',
-            array( 'key' => 'all_posts_ajax_hide', 'value' => '1', 'compare' => '!=' ),
             array( 'key' => 'all_posts_ajax_hide', 'compare' => 'NOT EXISTS' ),
         );
     }
