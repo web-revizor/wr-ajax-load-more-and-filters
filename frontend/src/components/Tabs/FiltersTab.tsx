@@ -100,6 +100,13 @@ export function FiltersTab({ taxonomies, filters, setFilters }: Props) {
               onChange={(v) => update('multiplyFilter', v)}
             />
 
+            <Toggle
+              size={'small'}
+              label={'Show post count on buttons'}
+              value={filters.showFilterCount}
+              onChange={(v) => update('showFilterCount', v)}
+            />
+
             <Input
               label='Filter item classes'
               name={'filter_item_classes'}
