@@ -94,6 +94,36 @@ class WRALM_Query_Config {
             $c->archive_taxonomy = (string) $term->taxonomy;
         }
 
+        // Filter state carried in the address bar (namespaced `filter_<taxonomy>=`
+        // and `filter_search` — the same params filter_query_args() writes and
+        // the public script reads). Reading them here lets a bookmarked/shared
+        // filtered URL render the filtered list server-side, instead of the JS
+        // having to re-fetch it right after load.
+        if ( $c->sync_filters_url ) {
+            foreach ( $_GET as $key => $value ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+                if ( ! is_string( $key ) || 0 !== strpos( $key, 'filter_' ) ) {
+                    continue;
+                }
+                if ( 'filter_search' === $key ) {
+                    if ( is_string( $value ) && '' !== $value ) {
+                        $c->search = sanitize_text_field( wp_unslash( $value ) );
+                    }
+                    continue;
+                }
+                $taxonomy = sanitize_key( substr( $key, 7 ) );
+                if ( '' === $taxonomy || ! is_string( $value ) || ! taxonomy_exists( $taxonomy ) ) {
+                    continue;
+                }
+                $slugs = array_values( array_filter( array_map(
+                    'sanitize_title',
+                    explode( ',', wp_unslash( $value ) )
+                ) ) );
+                if ( $slugs ) {
+                    $c->tax_filters[ $taxonomy ] = $slugs;
+                }
+            }
+        }
+
         return $c;
     }
 

@@ -23,6 +23,34 @@ jQuery(function ($) {
 
     var NO_RESULTS = '<div class="no-results-found">no results found</div>';
 
+    /** { category, search } state -> the filter_<tax>= / filter_search arg map. */
+    function urlStateToFilterArgs(state) {
+        var args = {};
+        Object.keys(state.category).forEach(function (t) {
+            args['filter_' + t] = state.category[t].join(',');
+        });
+        if (state.search) {
+            args['filter_search'] = state.search;
+        }
+        return args;
+    }
+
+    /** Same key set and values (order-insensitive on keys). */
+    function sameFilterArgs(a, b) {
+        b = b || {};
+        var ak = Object.keys(a).sort();
+        var bk = Object.keys(b).sort();
+        if (ak.length !== bk.length) {
+            return false;
+        }
+        for (var i = 0; i < ak.length; i++) {
+            if (ak[i] !== bk[i] || String(a[ak[i]]) !== String(b[ak[i]])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /* ------------------------------------------------------------------ *
      * Filter panel (shared UI state)
      *
@@ -125,6 +153,9 @@ jQuery(function ($) {
         this.syncPaginationUrl = String(this.$row.data('sync-pagination-url')) !== 'false';
         this.archiveContext = String(this.$row.data('archive-context')) === 'true';
         this.initPage = parseInt($holder.data('init-page'), 10) || 1;
+        // Filter args the server already rendered into this holder (jQuery parses
+        // the JSON in data-init-filters), used to skip a redundant initial fetch.
+        this.initFilters = this.$holder.data('init-filters') || {};
 
         this.page = this.initPage;
         this.seq = 0;
@@ -271,11 +302,9 @@ jQuery(function ($) {
      * Requests
      * ---------------------------------------------------------------- */
 
-    /** POST body for admin-ajax `loadmore`. */
+    /** Query params for the wralm/v1/list GET request. */
     Instance.prototype.buildData = function (category) {
         return {
-            action: 'loadmore',
-            nonce: params.nonce,
             page: this.page,
             posts_per_page: this.rowAttr('posts-per-page'),
             post_type: this.rowAttr('posts-type'),
@@ -319,9 +348,12 @@ jQuery(function ($) {
         this.$holder.css('opacity', '0.5');
 
         this.xhr = $.ajax({
-            url: params.ajaxurl,
-            type: 'POST',
-            data: data
+            url: params.resturl,
+            type: 'GET',
+            data: data,
+            // Sent so a logged-in viewer is resolved on the REST request; the
+            // route itself is public (no nonce gate).
+            headers: params.nonce ? { 'X-WP-Nonce': params.nonce } : {}
         }).done(function (res) {
             if (mySeq !== self.seq) {
                 return; // stale response, a newer request already owns the DOM
@@ -407,15 +439,25 @@ jQuery(function ($) {
         var hasFilter = Object.keys(state.category).length > 0;
         var hasSearch = state.search !== '';
 
-        if (hasFilter || hasSearch || state.page !== this.initPage) {
-            this.request({
-                page: state.page,
-                clearRow: true,
-                push: false,
-                emptyHtml: NO_RESULTS,
-                event: 'AjaxFilterDone'
-            });
+        if (!hasFilter && !hasSearch && state.page === this.initPage) {
+            return; // URL is the default the server already rendered
         }
+
+        // The server now reads filter_<tax>= / filter_search from the URL too
+        // (WRALM_Query_Config::from_atts). When it already rendered this exact
+        // state + page, only the panel DOM needs syncing — no re-fetch.
+        if (state.page === this.initPage &&
+            sameFilterArgs(urlStateToFilterArgs(state), this.initFilters)) {
+            return;
+        }
+
+        this.request({
+            page: state.page,
+            clearRow: true,
+            push: false,
+            emptyHtml: NO_RESULTS,
+            event: 'AjaxFilterDone'
+        });
     };
 
     /** Back / Forward: re-render to match whatever the URL now says. */

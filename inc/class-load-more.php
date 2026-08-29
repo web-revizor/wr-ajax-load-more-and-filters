@@ -5,13 +5,22 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * Front-end script enqueue + the loadmore/filter AJAX endpoint.
+ * Front-end script enqueue + the list/filter endpoint.
+ *
+ * The endpoint is a REST GET route (wralm/v1/list) so a reverse proxy / CDN can
+ * cache it; the legacy admin-ajax `loadmore` action stays as a thin shim over
+ * the same handler for themes that call it directly. Both delegate to
+ * build_list_response().
  */
 class WRALM_Load_More
 {
+    const REST_NAMESPACE = 'wralm/v1';
+    const REST_ROUTE     = '/list';
+
     public function __construct()
     {
         add_action('wp_enqueue_scripts', [$this, 'enqueue_scripts']);
+        add_action('rest_api_init', [$this, 'register_rest']);
         add_action('wp_ajax_loadmore', [$this, 'handle_ajax']);
         add_action('wp_ajax_nopriv_loadmore', [$this, 'handle_ajax']);
     }
@@ -31,20 +40,72 @@ class WRALM_Load_More
         );
 
         wp_localize_script('my_loadmore', 'loadmore_params', array(
-            'ajaxurl' => admin_url('admin-ajax.php'),
+            'resturl'      => esc_url_raw(rest_url(self::REST_NAMESPACE . self::REST_ROUTE)),
+            'ajaxurl'      => admin_url('admin-ajax.php'), // legacy consumers
             'current_page' => get_query_var('paged') ? get_query_var('paged') : 1,
-            'max_page' => $wp_query->max_num_pages,
-            'nonce' => wp_create_nonce('wralm_loadmore'),
+            'max_page'     => $wp_query->max_num_pages,
+            'nonce'        => wp_create_nonce('wp_rest'),
         ));
 
         wp_enqueue_script('my_loadmore');
     }
 
+    public function register_rest()
+    {
+        register_rest_route(self::REST_NAMESPACE, self::REST_ROUTE, array(
+            'methods'             => 'GET',
+            'callback'            => [$this, 'handle_rest'],
+            'permission_callback' => [$this, 'rest_permission'],
+        ));
+    }
+
+    /**
+     * Public read endpoint — no nonce gate (an anonymous nonce is not a secret
+     * and a list of published posts is not a CSRF target). Abuse is bounded by
+     * a light per-IP rate limit instead.
+     */
+    public function rest_permission()
+    {
+        $ip  = isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : '';
+        $max = (int) apply_filters('wralm_rate_limit', 60);
+        if ($max < 1 || '' === $ip) {
+            return true;
+        }
+
+        $key  = 'wralm_rl_' . md5($ip);
+        $hits = (int) get_transient($key);
+        if ($hits >= $max) {
+            return new WP_Error('wralm_rate_limited', __('Too many requests', 'wr-ajax-load-more-and-filters'), array('status' => 429));
+        }
+        set_transient($key, $hits + 1, MINUTE_IN_SECONDS);
+
+        return true;
+    }
+
+    public function handle_rest(WP_REST_Request $request)
+    {
+        $response = rest_ensure_response($this->build_list_response($request->get_params()));
+        // Safe to cache: output depends only on the query args, and the list
+        // changes slowly. Short TTL keeps staleness bounded.
+        $response->header('Cache-Control', 'public, max-age=30');
+        return $response;
+    }
+
     public function handle_ajax()
     {
-        $this->maybe_check_nonce(); // soft nonce check (hard via wralm_require_nonce filter)
+        wp_send_json($this->build_list_response(wp_unslash($_POST)));
+    }
 
-        $config = WRALM_Query_Config::from_request(wp_unslash($_POST));
+    /**
+     * The shared handler: build the query config from request params, render
+     * the cards + pagination, return the JSON-shaped array.
+     *
+     * @param array $params Raw request params (unslashed).
+     * @return array{html:string,pagination:string,max_page:int,canonical_url:string}
+     */
+    public function build_list_response(array $params)
+    {
+        $config = WRALM_Query_Config::from_request($params);
 
         $query = new WP_Query($config->wp_query_args());
 
@@ -72,35 +133,17 @@ class WRALM_Load_More
             $config->base_url
         );
 
-        // Serialize the active filter state the same way the public script does
-        // (taxonomy=slug,slug + filter_search) so the pagination links and the
-        // canonical address-bar URL both carry it. Dropped when filter-URL sync
-        // is off.
         $add_args = $config->sync_filters_url ? $config->filter_query_args() : array();
 
         $pagination = WRALM_Pagination::links(
             $config->pagination_args($base, $format, $add_args) + array('total' => $query->max_num_pages)
         );
 
-        wp_send_json(array(
-            'html' => $html,
-            'pagination' => $pagination,
-            'max_page' => $query->max_num_pages,
-            // The exact URL the address bar must show for this state (filters +
-            // page). Server-built so the JS never re-implements resolve_base().
+        return array(
+            'html'          => $html,
+            'pagination'    => $pagination,
+            'max_page'      => $query->max_num_pages,
             'canonical_url' => WRALM_Pagination::page_url($base, $format, $config->paged, $add_args),
-        ));
-    }
-
-    private function maybe_check_nonce()
-    {
-        $nonce = isset($_POST['nonce']) && is_string($_POST['nonce'])
-            ? sanitize_text_field(wp_unslash($_POST['nonce']))
-            : '';
-        $valid = $nonce && wp_verify_nonce($nonce, 'wralm_loadmore');
-
-        if (!$valid && apply_filters('wralm_require_nonce', false)) {
-            wp_send_json_error(array('message' => 'bad nonce'), 403);
-        }
+        );
     }
 }

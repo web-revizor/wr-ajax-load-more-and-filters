@@ -55,7 +55,15 @@ class WRALM_Shortcode
         }
 
         $results = '<div class="ajax_row_holder" data-init-page="' . esc_attr($config->paged) . '"';
-        $results .= ' data-filter-id="' . esc_attr($config->filter_id) . '">';
+        $results .= ' data-filter-id="' . esc_attr($config->filter_id) . '"';
+        // The filter state the server actually rendered (from the URL, via
+        // WRALM_Query_Config::from_atts). The public script compares this with
+        // the address bar and skips the initial re-fetch when they already match.
+        $init_filters = $config->sync_filters_url ? $config->filter_query_args() : array();
+        if ($init_filters) {
+            $results .= ' data-init-filters="' . esc_attr(wp_json_encode($init_filters)) . '"';
+        }
+        $results .= '>';
         $results .= '<div class="ajax_row ' . esc_attr($config->row_classes) . '"'
             . $config->render_data_attr_string() . '>';
         $results .= $posts_result;
