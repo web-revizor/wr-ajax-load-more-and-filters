@@ -36,12 +36,17 @@ export interface SearchSettings {
   searchPlaceholder: string;
 }
 
+export type SortDirection = 'asc' | 'desc';
+
+export interface SortRow {
+  label: string;
+  orderBy: string;
+  direction: SortDirection;
+}
+
 export interface OrderSettings {
   enableOrder: boolean;
-  labelNewestOrder: string;
-  labelOldOrder: string;
-  orderByOptions: string[];
-  orderByLabels: string;
+  sortRows: SortRow[];
 }
 
 export interface BuilderState {

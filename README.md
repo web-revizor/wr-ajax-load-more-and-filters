@@ -58,12 +58,11 @@ screen *WR Ajax Load More* generates both shortcode strings for you.
 | `post_type` | `post` | Post type to list. |
 | `posts_per_page` | `10` | Number of posts per page. `-1` for all. Ignored for `product` (see [WooCommerce](#woocommerce)). |
 | `type_pagination` | `default` | `list`, `both`, `default` (Show more button), or `none`. |
-| `row_classes` | `posts_row` | Extra classes on the list container. |
+| `row_classes` | — | Extra classes appended to `.wr-posts__list`. |
 | `load_more_label` | `Show more` | "Show more" button text. |
 | `load_more_classes` | `load_more_button` | Extra classes on the "Show more" button. |
 | `prev_text` / `next_text` | `Previous` / `Next` | Prev/next link text. |
-| `orderby` | `date` | Initial sort key. One of `date`, `title`, `menu_order`, `rand`, `modified`, `comment_count`, plus `price`, `popularity`, `rating` for WooCommerce products. Runtime sorting is driven by the panel, not this attribute. |
-| `sync_filters_url` | `true` | Write filter/search/sort state to the URL (`filter_<taxonomy>=slug`, `filter_search`). `false` keeps that state in memory only. |
+| `sync_filters_url` | `true` | Write filter/search/sort state to the URL (`filter_<taxonomy>=slug`, `filter_search`, `sort`). `false` keeps that state in memory only. |
 | `sync_pagination_url` | `true` | Give pagination links real `href`s and push the page into the URL. Pretty `/page/N/` is used only on archive/home/taxonomy contexts with pretty permalinks; elsewhere `?paged=N`. `false` makes hrefs `#`. The "Show more" button never syncs the URL. |
 | `filter_id` | `<post_type>_filter` | Links this list to the panel with the same value. |
 
@@ -79,19 +78,16 @@ screen *WR Ajax Load More* generates both shortcode strings for you.
 | `filter_titles` | `false` | Print a heading before each taxonomy's terms. |
 | `filter_item_limit` | `0` | Show only the first N term buttons, with an expand toggle. `0` = no limit. |
 | `filter_expand_label` | `See all` | Expand toggle text. |
-| `filter_expand_class` | `filter_expand` | Expand toggle class. |
-| `filter_row_classes` | `filter_row` | Class on the filter row container. |
-| `filter_item_classes` | `filter_item` | Class on each filter control. |
+| `filter_expand_class` | — | Extra classes appended to `.wr-filters__expand`. |
+| `filter_row_classes` | — | Extra classes appended to `.wr-filters__list`. |
+| `filter_item_classes` | — | Extra classes appended to each `.wr-filters__item`. |
 | `all_category_button` | `All` | Label of the reset ("All") button. |
-| `show_filter_count` | `true` | Show the post count on each button. `false` removes every `<span class="postCount">` and skips the count queries. Button mode only. |
+| `show_filter_count` | `true` | Show the post count on each button. `false` removes every `.wr-filters__item-count` span and skips the count queries. Button mode only. |
 | `enable_clear_button` | `false` | Render a "Clear Filters" button that resets filters, search and selects. |
 | `enable_search` | `false` | Render a search field. |
 | `label_search_button` | `Search` | Search button text. |
 | `search_placeholder` | `Search` | Search field placeholder. |
-| `enable_order` | `false` | Render the Newest / Oldest direction select. |
-| `label_newest_order` / `label_old_order` | `Newest First` / `Old First` | Direction option labels. |
-| `order_by_options` | — | Comma-separated subset of `date,title,menu_order,rand,price,popularity,rating`. When set, a second select offers these sort keys. |
-| `order_by_labels` | — | Comma-separated labels, positionally parallel to `order_by_options`. Missing entries fall back to a prettified key. |
+| `sort_options` | — | Sorting `<select>`. Records separated by `\|`, each `orderby:order:label` (split on the first two colons, so a label may contain a colon). `orderby` is one of `date`, `title`, `menu_order`, `rand`, `modified`, `comment_count`, `price`, `popularity`, `rating`; `order` is `asc` or `desc`. Empty → no select. The **first** record is the default sort; the URL only carries `sort` when the active choice differs from it. Example: `sort_options="date:desc:Newest first\|price:asc:Cheapest first"`. |
 | `filter_id` | `<post_type>_filter` | Links this panel to the list with the same value. |
 
 ## Multiple instances
@@ -108,13 +104,8 @@ own distinct `filter_id`:
 ```
 
 Each pair gets its own controller, scoped by `filter_id`, so the panels never
-cross-talk. Emitted element ids are instance-unique:
-
-- `all_posts_filter_<filter_id>` — the `<form>`
-- `all-post-search-<filter_id>` — the search `<input>`
-- `js-post-order-<filter_id>` — the direction `<select>`
-
-The pagination wrapper has no id; target it by `.pagination_holder`.
+cross-talk. `data-filter-id` on `.wr-posts` and `.wr-filters` is the only pairing
+mechanism; no element carries an `id`.
 
 **Limitation:** two instances that expose the *same* taxonomy share one
 `filter_<taxonomy>=` URL parameter, so both restore from it and both fire a
@@ -184,10 +175,52 @@ an empty `post-card.php` for you to fill in.
 | `wralm_rate_limit` | filter | `60` | Max REST requests per IP per minute. `0` or less disables the limit. |
 | `wralm_max_posts_per_page` | filter | `200` | Upper clamp for `posts_per_page` coming from a request. |
 
+## CSS contract
+
+The plugin ships no front-end CSS; it only emits a stable class structure for a
+theme to style. BEM-style, all prefixed `wr-`. State classes: `is-active`,
+`is-current`, `is-disabled`, `is-hidden`.
+
+List — `[all_posts_ajax]`:
+
+```
+.wr-posts                     controller root, carries data-filter-id
+  .wr-posts__list             holds the cards + the data-* attributes
+  .wr-posts__pagination
+    a.wr-posts__page          + --prev / --next / --more, .is-current, --dots
+                              (numbered links also keep page-numbers / current / dots)
+  .wr-posts__empty            "no results" state
+```
+
+Panel — `[all_posts_ajax_filters]`:
+
+```
+.wr-filters                            panel scope, carries data-filter-id
+  form.wr-filters__form
+  .wr-filters__search
+    input.wr-filters__search-input
+    button.wr-filters__search-submit
+  .wr-filters__list
+    button.wr-filters__item            + --all / --parent / --child, data-multiply
+      span.wr-filters__item-label
+      span.wr-filters__item-count
+    p.wr-filters__heading
+    .wr-filters__select
+      select.wr-filters__select-control
+    button.wr-filters__clear
+  .wr-filters__expand
+  .wr-filters__sort
+    select.wr-filters__sort-control
+```
+
+`row_classes`, `filter_row_classes`, `filter_item_classes` and
+`filter_expand_class` append extra classes to the corresponding structural
+element; they do not replace it.
+
 ## JavaScript events
 
 `AjaxPaginationDone` and `AjaxFilterDone` fire on `document` and on the
-instance's `.ajax_row_holder` after every request.
+instance's `.wr-posts` element after every request.
 
 ```js
 $(document).on('AjaxFilterDone', function () {

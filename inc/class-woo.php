@@ -63,9 +63,9 @@ class WRALM_Woo {
 			case 'price':
 				return array( 'orderby' => 'meta_value_num', 'meta_key' => '_price', 'order' => $order );
 			case 'popularity':
-				return array( 'orderby' => 'meta_value_num', 'meta_key' => 'total_sales', 'order' => 'DESC' );
+				return array( 'orderby' => 'meta_value_num', 'meta_key' => 'total_sales', 'order' => $order );
 			case 'rating':
-				return array( 'orderby' => 'meta_value_num', 'meta_key' => '_wc_average_rating', 'order' => 'DESC' );
+				return array( 'orderby' => 'meta_value_num', 'meta_key' => '_wc_average_rating', 'order' => $order );
 			case 'menu_order':
 				return array( 'orderby' => 'menu_order title', 'order' => $order );
 			case 'title':

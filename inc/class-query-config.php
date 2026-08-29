@@ -13,7 +13,7 @@ class WRALM_Query_Config {
     public $posts_per_page = 10;
     public $paged = 1;
     public $pagination_type = 'default';
-    public $row_classes = 'posts_row';
+    public $row_classes = '';
     public $load_more_label = '';
     public $load_more_classes = 'load_more_button';
     public $prev_text = '';
@@ -28,6 +28,9 @@ class WRALM_Query_Config {
     public $search = '';
     public $orderby = 'date';
     public $order = 'DESC';
+    /** The panel's first sort option ("orderby:order"); the URL/request only
+     *  carries `sort` when the active sort differs from this. */
+    public $default_sort = 'date:desc';
     public $base_url = '';
 
     const ORDERBY_WHITELIST = array(
@@ -48,7 +51,6 @@ class WRALM_Query_Config {
             'filter_id'         => '',
             'sync_filters_url'    => '',
             'sync_pagination_url' => '',
-            'orderby'           => 'date',
         );
     }
 
@@ -68,11 +70,25 @@ class WRALM_Query_Config {
             $a['sync_filters_url'],
             $a['sync_pagination_url']
         );
-        $c->orderby           = self::sanitize_orderby( $a['orderby'] );
 
         $c->filter_id = $a['filter_id'] !== ''
             ? sanitize_key( $a['filter_id'] )
             : $c->post_type . '_filter';
+
+        // Sort: the default is the paired panel's first sort option (registered
+        // by WRALM_Filter_Config when the panel renders — which is above the list
+        // in a normal layout). The address bar only carries `sort` when the
+        // active sort differs from that default.
+        $registered = class_exists( 'WRALM_Filter_Config' )
+            ? WRALM_Filter_Config::default_sort_for( $c->filter_id )
+            : '';
+        list( $do, $dord )  = self::split_sort_value( '' !== $registered ? $registered : 'date:desc' );
+        $c->default_sort    = $do . ':' . strtolower( $dord );
+
+        $url_sort = ( $c->sync_filters_url && isset( $_GET['sort'] ) && is_string( $_GET['sort'] ) ) // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+            ? sanitize_text_field( wp_unslash( $_GET['sort'] ) ) // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+            : '';
+        list( $c->orderby, $c->order ) = self::split_sort_value( '' !== $url_sort ? $url_sort : $c->default_sort );
 
         // Page context: real /page/N/ URLs only make sense on archive-ish pages.
         // NOT is_front_page(): a static-Page front page is is_front_page() but
@@ -147,6 +163,19 @@ class WRALM_Query_Config {
     }
 
     /**
+     * Split a "orderby:order" sort value into a validated [ orderby, ORDER ]
+     * pair. Unknown orderby falls back to `date`; anything but `asc` is `DESC`.
+     *
+     * @return array [ string $orderby, string $order ]
+     */
+    public static function split_sort_value( $raw ) {
+        $parts   = explode( ':', (string) $raw, 2 );
+        $orderby = self::sanitize_orderby( isset( $parts[0] ) ? $parts[0] : '' );
+        $order   = ( isset( $parts[1] ) && 'asc' === strtolower( trim( $parts[1] ) ) ) ? 'ASC' : 'DESC';
+        return array( $orderby, $order );
+    }
+
+    /**
      * For a product list, ignore the shortcode / request value and use the
      * WooCommerce catalog per-page setting. Everything else keeps its value.
      */
@@ -178,7 +207,7 @@ class WRALM_Query_Config {
             'data-next-text'        => $this->next_text,
             'data-cat-id'           => (string) $this->archive_term_id,
             'data-cat-taxonomy'     => $this->archive_taxonomy,
-            'data-orderby'          => $this->orderby,
+            'data-sort'             => $this->orderby . ':' . strtolower( $this->order ),
             'data-sync-filters-url'    => $this->sync_filters_url ? 'true' : 'false',
             'data-sync-pagination-url' => $this->sync_pagination_url ? 'true' : 'false',
             'data-archive-context'  => $this->archive_context ? 'true' : 'false',
@@ -241,8 +270,15 @@ class WRALM_Query_Config {
             $c->search = sanitize_text_field( $req['search'] );
         }
 
-        $c->order   = ( isset( $req['order'] ) && is_string( $req['order'] ) && 'ASC' === strtoupper( $req['order'] ) ) ? 'ASC' : 'DESC';
-        $c->orderby = isset( $req['orderby'] ) && is_string( $req['orderby'] ) ? self::sanitize_orderby( $req['orderby'] ) : 'date';
+        // The panel has no server render on an AJAX/REST request, so the client
+        // sends its first sort option as `default_sort` alongside the active
+        // `sort`; `filter_query_args()` emits `sort` only when they differ.
+        $raw_default    = isset( $req['default_sort'] ) && is_string( $req['default_sort'] ) ? $req['default_sort'] : 'date:desc';
+        list( $dd_ob, $dd_or ) = self::split_sort_value( $raw_default );
+        $c->default_sort = $dd_ob . ':' . strtolower( $dd_or );
+
+        $raw_sort = isset( $req['sort'] ) && is_string( $req['sort'] ) ? $req['sort'] : $c->default_sort;
+        list( $c->orderby, $c->order ) = self::split_sort_value( $raw_sort );
 
         if ( ! empty( $req['category'] ) && is_array( $req['category'] ) ) {
             foreach ( $req['category'] as $taxonomy => $slugs ) {
@@ -355,6 +391,11 @@ class WRALM_Query_Config {
         }
         if ( '' !== $this->search ) {
             $args['filter_search'] = $this->search;
+        }
+        $current_sort = $this->orderby . ':' . strtolower( $this->order );
+        $default_sort = '' !== $this->default_sort ? $this->default_sort : 'date:desc';
+        if ( $current_sort !== $default_sort ) {
+            $args['sort'] = $current_sort;
         }
         return $args;
     }
