@@ -1090,6 +1090,45 @@ git commit -m "fix: instance-unique ids on filter form / search input / order se
 
 ---
 
+### Task 6.3: `resolve_base()` strips an existing pagination segment (JS-batch review finding #1)
+
+**Why:** `WRALM_Pagination::resolve_base()` does `strtok($url, '?')` then `trailingslashit($path) . '%_%'` with no removal of a trailing `/page/N/` (or `/{pagination_base}/N/`, or `?paged=N` / `?page=N`). When a visitor lands on a real server-rendered deep URL (`/blog/page/2/`) and then paginates/filters via AJAX, the response's pagination `<a>` hrefs double to `/blog/page/2/page/3/`. Affects **both** callers: `handle_ajax` (JS now sends `base_url = pathname + search`) and `render_posts` (via `get_pagenum_link()` on a page-2 archive). `handle_ajax` computes a stripped value only for the JSON echo, which the rewritten JS no longer reads.
+
+**Files:**
+- Modify: `inc/class-pagination.php` — `resolve_base()`
+- Simplify: `inc/class-load-more.php` — `handle_ajax` can drop its own `preg_replace` on the echoed `base_url` (now that `resolve_base` owns the stripping) OR keep it harmless; do NOT re-introduce client use of `res.base_url`.
+
+- [ ] **Step 1:** In `resolve_base()`, before `$path = strtok($url, '?')`:
+  ```php
+  global $wp_rewrite;
+  $pag_base = isset( $wp_rewrite->pagination_base ) ? $wp_rewrite->pagination_base : 'page';
+  // strip a trailing /page/N/ or /{pagination_base}/N/ from the path
+  $url = preg_replace(
+      '#/(?:page|' . preg_quote( $pag_base, '#' ) . ')/\d+/?(?=$|\?)#',
+      '/',
+      $url
+  );
+  // strip ?paged=N / ?page=N (and &-joined variants) from the query
+  $url = preg_replace( '#([?&])(?:paged|page)=\d+#', '$1', $url );
+  $url = preg_replace( '#[?&]+$#', '', $url );
+  $url = str_replace( '?&', '?', $url );
+  ```
+  Keep the rest of `resolve_base()` unchanged.
+- [ ] **Step 2:** In `handle_ajax`, the JSON `base_url` value: keep echoing a clean value (its own `preg_replace` still works; or set it to the stripped `$config->base_url`). It is now belt-and-suspenders — the JS ignores it, but a theme reading the AJAX response directly still gets a sane value. No behaviour change required; just confirm it doesn't double-strip incorrectly.
+- [ ] **Step 3: Verify** — `php -l` both files. Shim harness for `resolve_base()`:
+  - `resolve_base(true, true, 'https://x.test/blog/page/2/')` with permalinks+`using_permalinks()` true → base `https://x.test/blog/%_%`, pretty format — NOT `.../page/2/%_%`.
+  - `resolve_base(false, false, 'https://x.test/blog/?paged=3&filter_search=x')` → base `https://x.test/blog/%_%`... actually `strtok` drops the query anyway for the base; assert the base has no `paged`, and that a subsequent `links()` call with this base + `add_args=['filter_search'=>'x']` emits `?filter_search=x&paged=2` style links, no `paged=3` leftover.
+  - `resolve_base(true, true, 'https://x.test/shop/')` (no pagination segment) → unchanged base `https://x.test/shop/%_%`.
+  - Run under `error_reporting(E_ALL)` → zero warnings.
+- [ ] **Step 4: Commit**
+
+```bash
+git add inc/class-pagination.php inc/class-load-more.php
+git commit -m "fix: resolve_base strips an existing /page/N/ or ?paged=N so AJAX pagination links don't double"
+```
+
+---
+
 ## Phase 7 — Search hardening (`inc/class-search-acf.php`)
 
 ### Task 7.1: Scope the `posts_search` filter to our queries
