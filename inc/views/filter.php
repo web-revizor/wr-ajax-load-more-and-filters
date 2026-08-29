@@ -122,7 +122,7 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
                 <button type="submit"
                         class="js-category-filter allCategories active multiply-<?= esc_attr($load_more_variables['multiply_filter']) ?> <?= esc_attr($load_more_variables['filter_item_classes']); ?>">
                     <span class="text"><?= esc_html($load_more_variables['all_category_button']); ?></span>
-                    <span class="postCount"><?= (int)wp_count_posts($load_more_variables['post_type'])->publish; ?></span>
+                    <span class="postCount"><?= (int) ( isset( $config ) && $config instanceof WRALM_Filter_Config ? WRALM_Filter_Config::visible_count( $load_more_variables['post_type'] ) : wp_count_posts( $load_more_variables['post_type'] )->publish ) ?></span>
                 </button>
                 <?php foreach ($categoriesArray as $taxonomy) : ?>
                     <?php

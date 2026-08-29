@@ -129,4 +129,54 @@ class WRALM_Filter_Config {
             'order_by_labels'     => $this->orderby_labels,
         );
     }
+
+    /**
+     * Count of published posts of $post_type that the [all_posts_ajax] list
+     * would actually show: excludes "Hide from list" meta and, for products,
+     * WooCommerce catalog-invisible / (optionally) out-of-stock items.
+     * Cached in a 5-minute transient; the TTL is the staleness bound (no
+     * explicit invalidation).
+     */
+    public static function visible_count( $post_type ) {
+        $post_type = sanitize_key( $post_type );
+        if ( '' === $post_type || ! post_type_exists( $post_type ) ) {
+            return 0;
+        }
+
+        $cache_key = 'wralm_vcount_' . $post_type;
+        $cached    = get_transient( $cache_key );
+        if ( false !== $cached ) {
+            return (int) $cached;
+        }
+
+        $args = array(
+            'post_type'              => $post_type,
+            'post_status'            => 'publish',
+            'posts_per_page'         => 1,
+            'fields'                 => 'ids',
+            'no_found_rows'          => false,
+            'ignore_sticky_posts'    => true,
+            'update_post_meta_cache' => false,
+            'update_post_term_cache' => false,
+            'meta_query'             => array(
+                'relation' => 'OR',
+                array( 'key' => 'all_posts_ajax_hide', 'value' => '1', 'compare' => '!=' ),
+                array( 'key' => 'all_posts_ajax_hide', 'compare' => 'NOT EXISTS' ),
+            ),
+        );
+
+        if ( class_exists( 'WRALM_Woo' ) && WRALM_Woo::is_product_query( $post_type ) ) {
+            $vis = WRALM_Woo::visibility_tax_query();
+            if ( $vis ) {
+                $args['tax_query'] = array( $vis );
+            }
+        }
+
+        $q     = new WP_Query( $args );
+        $count = (int) $q->found_posts;
+
+        set_transient( $cache_key, $count, 5 * MINUTE_IN_SECONDS );
+
+        return $count;
+    }
 }
