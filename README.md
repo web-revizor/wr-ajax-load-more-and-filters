@@ -266,8 +266,9 @@ query (no single term matches `courses,figma`). That used to flip pagination to
 (re-encoding the comma as `%2C`), so the pagination URL flapped between two
 forms. `from_atts` now recognises any `?<taxonomy>=` query param on a
 non-singular page as an archive context and emits pretty `/page/N/` from the
-first render. Commas in multi-term values are kept percent-encoded (`%2C`)
-everywhere — the form WordPress itself normalises to.
+first render. Because the path is then already canonical, WordPress does not
+rebuild the URL, so commas in multi-term values stay literal
+(`?product_cat=courses,figma`) both on page 1 and on `/page/N/`.
 
 ## Known limitations
 
