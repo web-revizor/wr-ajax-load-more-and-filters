@@ -8,18 +8,41 @@ $load_more_variables = isset( $config ) && $config instanceof WRALM_Filter_Confi
     ? $config->to_legacy_array()
     : $load_more_variables;
 
+if ( ! function_exists( 'wralm_term_tree' ) ) {
+    /**
+     * Every term of $taxonomy in ONE get_terms() call, grouped as
+     * [ parent_term_id => WP_Term[] ] (root terms under key 0). Replaces the
+     * old per-term get_terms( parent => X ) calls inside the render recursion.
+     *
+     * @return array<int,array>
+     */
+    function wralm_term_tree( $taxonomy ) {
+        $terms     = get_terms( array( 'taxonomy' => $taxonomy, 'hide_empty' => false ) );
+        $by_parent = array();
+        if ( is_array( $terms ) ) {
+            foreach ( $terms as $t ) {
+                $by_parent[ (int) $t->parent ][] = $t;
+            }
+        }
+        return $by_parent;
+    }
+}
+
 if ( ! function_exists( 'wralm_render_filter_terms' ) ) {
     /**
      * Recursively render filter buttons for a term tree (button mode).
      * Increments $printed by the number of buttons emitted (for the item-limit toggle).
      *
-     * @param array  $terms    List of WP_Term objects (callers must pass a real array).
-     * @param string $taxonomy Taxonomy slug.
-     * @param array  $v        Legacy $load_more_variables array.
-     * @param int    $depth    Current nesting depth (0 = root).
-     * @param int    $printed  Running count of buttons emitted, passed by reference.
-     * @param int    $limit    filter_item_limit (0 = unlimited).
-     * @param array  $counts   [ term_id => visible post count ] from
+     * @param array  $terms     List of WP_Term objects (callers must pass a real array).
+     * @param string $taxonomy  Taxonomy slug.
+     * @param array  $by_parent [ parent_term_id => WP_Term[] ] — the whole term
+     *                          tree fetched once, so this recursion never calls
+     *                          get_terms() per term.
+     * @param array  $v         Legacy $load_more_variables array.
+     * @param int    $depth     Current nesting depth (0 = root).
+     * @param int    $printed   Running count of buttons emitted, passed by reference.
+     * @param int    $limit     filter_item_limit (0 = unlimited).
+     * @param array  $counts    [ term_id => visible post count ] from
      *                         WRALM_Filter_Config::term_visible_counts(), or an
      *                         empty array when counts are disabled
      *                         (show_filter_count="false"). When non-empty a term
@@ -27,26 +50,21 @@ if ( ! function_exists( 'wralm_render_filter_terms' ) ) {
      *                         term (that survived hide_empty) is rendered and no
      *                         count <span> is emitted.
      */
-    function wralm_render_filter_terms( array $terms, $taxonomy, array $v, $depth, &$printed, $limit, array $counts = array() ) {
+    function wralm_render_filter_terms( array $terms, $taxonomy, array $by_parent, array $v, $depth, &$printed, $limit, array $counts = array() ) {
         $show_count = ! empty( $counts );
 
         foreach ( $terms as $term ) {
-            $children = get_terms( array(
-                'taxonomy'   => $taxonomy,
-                'parent'     => $term->term_id,
-                'hide_empty' => false,
-            ) );
-            if ( ! is_array( $children ) ) {
-                $children = array();
-            }
+            $children = isset( $by_parent[ $term->term_id ] ) ? $by_parent[ $term->term_id ] : array();
 
             $count = array_key_exists( $term->term_id, $counts )
                 ? (int) $counts[ $term->term_id ]
                 : (int) $term->count;
 
-            // A term with nothing visible once the list's exclusions are
-            // applied would render a button that shows an empty result set.
-            if ( $show_count && 0 === $count ) {
+            // A term that would render a button leading to an empty result set:
+            // with counts on, that is any 0 visible-count term; with counts off,
+            // mirror the old hide_empty=true roots — skip a term with no posts
+            // of its own and no children.
+            if ( 0 === $count && ( $show_count || ! $children ) ) {
                 continue;
             }
 
@@ -69,7 +87,7 @@ if ( ! function_exists( 'wralm_render_filter_terms' ) ) {
             $printed++;
 
             if ( $children ) {
-                wralm_render_filter_terms( $children, $taxonomy, $v, $depth + 1, $printed, $limit, $counts );
+                wralm_render_filter_terms( $children, $taxonomy, $by_parent, $v, $depth + 1, $printed, $limit, $counts );
             }
         }
     }
@@ -79,19 +97,19 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
     /**
      * Recursively render <option> elements for a term tree (select mode).
      *
-     * @param array  $terms    List of WP_Term objects (callers must pass a real array).
-     * @param string $taxonomy Taxonomy slug.
-     * @param int    $depth    Current nesting depth (0 = root).
+     * @param array  $terms     List of WP_Term objects (callers must pass a real array).
+     * @param string $taxonomy  Taxonomy slug.
+     * @param array  $by_parent [ parent_term_id => WP_Term[] ] — term tree fetched once.
+     * @param int    $depth     Current nesting depth (0 = root).
      */
-    function wralm_render_filter_options( array $terms, $taxonomy, $depth ) {
+    function wralm_render_filter_options( array $terms, $taxonomy, array $by_parent, $depth ) {
         foreach ( $terms as $term ) {
-            $children = get_terms( array(
-                'taxonomy'   => $taxonomy,
-                'parent'     => $term->term_id,
-                'hide_empty' => false,
-            ) );
-            if ( ! is_array( $children ) ) {
-                $children = array();
+            $children = isset( $by_parent[ $term->term_id ] ) ? $by_parent[ $term->term_id ] : array();
+
+            // Old code fetched roots with hide_empty=true; keep an empty,
+            // childless term out of the dropdown.
+            if ( 0 === (int) $term->count && ! $children ) {
+                continue;
             }
 
             $indent = str_repeat( '&nbsp;&nbsp;', (int) $depth );
@@ -103,7 +121,7 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
             );
 
             if ( $children ) {
-                wralm_render_filter_options( $children, $taxonomy, $depth + 1 );
+                wralm_render_filter_options( $children, $taxonomy, $by_parent, $depth + 1 );
             }
         }
     }
@@ -147,15 +165,11 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
                 </button>
                 <?php foreach ($categoriesArray as $taxonomy) : ?>
                     <?php
-                    $taxonomy = trim( $taxonomy );
-                    $name     = get_taxonomy( $taxonomy );
-                    $roots    = get_terms( array(
-                        'taxonomy'   => $taxonomy,
-                        'parent'     => 0,
-                        'hide_empty' => true,
-                    ) );
-                    $roots = is_array( $roots ) ? $roots : array();
-                    // Counts (and the N queries behind them) only when shown.
+                    $taxonomy  = trim( $taxonomy );
+                    $name      = get_taxonomy( $taxonomy );
+                    $by_parent = wralm_term_tree( $taxonomy );
+                    $roots     = isset( $by_parent[0] ) ? $by_parent[0] : array();
+                    // Counts (one grouped query behind them) only when shown.
                     $term_counts = $show_filter_count
                         ? WRALM_Filter_Config::term_visible_counts( $load_more_variables['post_type'], $taxonomy )
                         : array();
@@ -163,20 +177,16 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
                     <?php if ($roots && $load_more_variables['filter_titles'] === 'true' && $name): ?>
                         <p class="filterHeading"><?= esc_html($name->label) ?></p>
                     <?php endif; ?>
-                    <?php wralm_render_filter_terms( $roots, $taxonomy, $load_more_variables, 0, $printed, $limit, $term_counts ); ?>
+                    <?php wralm_render_filter_terms( $roots, $taxonomy, $by_parent, $load_more_variables, 0, $printed, $limit, $term_counts ); ?>
                 <?php endforeach; ?>
             <?php elseif ($load_more_variables['filter_type'] === 'select'): ?>
                 <?php foreach ($categoriesArray as $taxonomy) : ?>
                     <?php
-                    $taxonomy = trim( $taxonomy );
-                    $name     = get_taxonomy( $taxonomy );
-                    $label    = $name ? $name->label : '';
-                    $roots    = get_terms( array(
-                        'taxonomy'   => $taxonomy,
-                        'parent'     => 0,
-                        'hide_empty' => true,
-                    ) );
-                    $roots = is_array( $roots ) ? $roots : array();
+                    $taxonomy  = trim( $taxonomy );
+                    $name      = get_taxonomy( $taxonomy );
+                    $label     = $name ? $name->label : '';
+                    $by_parent = wralm_term_tree( $taxonomy );
+                    $roots     = isset( $by_parent[0] ) ? $by_parent[0] : array();
                     ?>
 
                     <div class="category-filter-select-holder">
@@ -184,7 +194,7 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
                                 class="js-category-filter-select <?= esc_attr($load_more_variables['filter_item_classes']); ?>"
                                 data-taxonomy="<?= esc_attr($taxonomy) ?>">
                             <option value=""><?= esc_html( $label ) ?></option>
-                            <?php wralm_render_filter_options( $roots, $taxonomy, 0 ); ?>
+                            <?php wralm_render_filter_options( $roots, $taxonomy, $by_parent, 0 ); ?>
                         </select>
                     </div>
                 <?php endforeach; ?>
