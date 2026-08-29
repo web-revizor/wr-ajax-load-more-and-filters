@@ -54,7 +54,9 @@ class WRALM_Shortcode
             wp_reset_postdata();
         }
 
-        $results = '<div class="ajax_row_holder" data-init-page="' . esc_attr($config->paged) . '"';
+        $list_classes = trim('wr-posts__list ' . $config->row_classes);
+
+        $results = '<div class="wr-posts" data-init-page="' . esc_attr($config->paged) . '"';
         $results .= ' data-filter-id="' . esc_attr($config->filter_id) . '"';
         // The filter state the server actually rendered (from the URL, via
         // WRALM_Query_Config::from_atts). The public script compares this with
@@ -64,7 +66,7 @@ class WRALM_Shortcode
             $results .= ' data-init-filters="' . esc_attr(wp_json_encode($init_filters)) . '"';
         }
         $results .= '>';
-        $results .= '<div class="ajax_row ' . esc_attr($config->row_classes) . '"'
+        $results .= '<div class="' . esc_attr($list_classes) . '"'
             . $config->render_data_attr_string() . '>';
         $results .= $posts_result;
         $results .= '</div>';
@@ -80,7 +82,7 @@ class WRALM_Shortcode
         // (both required into this scope below).
         $config = WRALM_Filter_Config::from_atts($atts);
 
-        $results = '<div class="ajax_filters_wrapper" data-filter-id="' . esc_attr($config->filter_id) . '">';
+        $results = '<div class="wr-filters" data-filter-id="' . esc_attr($config->filter_id) . '">';
 
         $need_filter_view = in_array('true', array(
             (string) $config->filter_by_category,
@@ -94,7 +96,7 @@ class WRALM_Shortcode
             $results .= ob_get_clean();
         }
 
-        if ('true' === (string) $config->enable_order) {
+        if (WRALM_Filter_Config::parse_sort_options($config->sort_options)) {
             ob_start();
             require WRALM_PATH . 'inc/views/order.php';
             $results .= ob_get_clean();

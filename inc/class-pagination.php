@@ -175,19 +175,19 @@ class WRALM_Pagination
         if ($args['prev_next'] && $current && 1 < $current) :
             $link = self::page_url($args['base'], $args['format'], $current - 1, $add_args, $args['add_fragment']);
             $page_links[] = sprintf(
-                '<a class="prev load_page" href="%s" data-page="%s">%s</a>',
+                '<a class="wr-posts__page wr-posts__page--prev" href="%s" data-page="%s">%s</a>',
                 self::href($link, $args['sync_pagination_url']),
                 number_format_i18n($current - 1),
                 $args['prev_text']
             );
         else :
-            $page_links[] = sprintf('<span class="prev disabled">%s</span>', $args['prev_text']);
+            $page_links[] = sprintf('<span class="wr-posts__page wr-posts__page--prev is-disabled">%s</span>', $args['prev_text']);
         endif;
 
         for ($n = 1; $n <= $total; $n++) :
             if ($n == $current) :
                 $page_links[] = sprintf(
-                    '<span aria-current="%s" class="page-numbers current">%s</span>',
+                    '<span aria-current="%s" class="page-numbers current wr-posts__page is-current">%s</span>',
                     esc_attr($args['aria_current']),
                     $args['before_page_number'] . number_format_i18n($n) . $args['after_page_number']
                 );
@@ -196,14 +196,14 @@ class WRALM_Pagination
                 if ($args['show_all'] || ($n <= $end_size || ($current && $n >= $current - $mid_size && $n <= $current + $mid_size) || $n > $total - $end_size)) :
                     $link = self::page_url($args['base'], $args['format'], $n, $add_args, $args['add_fragment']);
                     $page_links[] = sprintf(
-                        '<a class="page-numbers load_page" href="%s" data-page="%s">%s</a>',
+                        '<a class="page-numbers wr-posts__page" href="%s" data-page="%s">%s</a>',
                         self::href($link, $args['sync_pagination_url']),
                         number_format_i18n($n),
                         $args['before_page_number'] . number_format_i18n($n) . $args['after_page_number']
                     );
                     $dots = true;
                 elseif ($dots && !$args['show_all']) :
-                    $page_links[] = '<span class="page-numbers dots">' . __('&hellip;', 'wr-ajax-load-more-and-filters') . '</span>';
+                    $page_links[] = '<span class="page-numbers dots wr-posts__page wr-posts__page--dots">' . __('&hellip;', 'wr-ajax-load-more-and-filters') . '</span>';
                     $dots = false;
                 endif;
             endif;
@@ -212,13 +212,13 @@ class WRALM_Pagination
         if ($args['prev_next'] && $current && $current < $total) :
             $link = self::page_url($args['base'], $args['format'], $current + 1, $add_args, $args['add_fragment']);
             $page_links[] = sprintf(
-                '<a class="next load_page" href="%s" data-page="%s">%s</a>',
+                '<a class="wr-posts__page wr-posts__page--next" href="%s" data-page="%s">%s</a>',
                 self::href($link, $args['sync_pagination_url']),
                 number_format_i18n($current + 1),
                 $args['next_text']
             );
             $page_links_more[] = sprintf(
-                '<a class="load_page load_more %s" href="%s" data-page="%s">%s</a>',
+                '<a class="wr-posts__page wr-posts__page--more %s" href="%s" data-page="%s">%s</a>',
                 esc_attr($args['load_more_classes']),
                 self::href($link, $args['sync_pagination_url']),
                 number_format_i18n($current + 1),
@@ -226,17 +226,17 @@ class WRALM_Pagination
             );
         else :
             $page_links_more[] = '';
-            $page_links[] = sprintf('<span class="next disabled">%s</span>', $args['next_text']);
+            $page_links[] = sprintf('<span class="wr-posts__page wr-posts__page--next is-disabled">%s</span>', $args['next_text']);
         endif;
 
         switch ($args['type']) {
             case 'list':
-                $r .= "<div class='pagination_holder load_more_holder'>";
+                $r .= "<div class='wr-posts__pagination'>";
                 $r .= implode("\n", $page_links);
                 $r .= "</div>";
                 break;
             case 'both':
-                $r .= "<div class='pagination_holder load_more_holder'>";
+                $r .= "<div class='wr-posts__pagination'>";
                 $r .= implode("\n", $page_links);
                 $r .= '<div>' . implode("\n", $page_links_more) . '</div>';
                 $r .= "</div>";
@@ -244,7 +244,7 @@ class WRALM_Pagination
             case 'none':
                 break;
             default:
-                $r .= "<div class='pagination_holder load_more_holder'>";
+                $r .= "<div class='wr-posts__pagination'>";
                 $r .= implode("\n", $page_links_more);
                 $r .= "</div>";
                 break;

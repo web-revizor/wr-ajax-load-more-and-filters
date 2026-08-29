@@ -38,11 +38,16 @@ const defaultSearch: SearchSettings = {
 
 const defaultOrder: OrderSettings = {
     enableOrder: false,
-    labelNewestOrder: '',
-    labelOldOrder: '',
-    orderByOptions: [],
-    orderByLabels: '',
+    sortRows: [],
 };
+
+/** Rows the Order tab seeds the first time sorting is enabled. */
+export const SEED_SORT_ROWS = [
+    {label: 'Newest first', orderBy: 'date', direction: 'desc' as const},
+    {label: 'Oldest first', orderBy: 'date', direction: 'asc' as const},
+    {label: 'Title A–Z', orderBy: 'title', direction: 'asc' as const},
+    {label: 'Title Z–A', orderBy: 'title', direction: 'desc' as const},
+];
 
 /** Wraps a value in a shortcode attribute, skipping empty strings. */
 function attr(name: string, value: string | number | boolean | undefined): string {
@@ -63,7 +68,14 @@ export function useShortcodeBuilder() {
     const state: BuilderState = {main, classes, filters, search, order};
 
     const filterId = `${main.postType}_filter`;
-    const hasFilters = filters.filterByCategory || search.enableSearch || order.enableOrder;
+    const sortRows = useMemo(
+        () =>
+            order.enableOrder
+                ? order.sortRows.filter((r) => r.orderBy && r.label.trim())
+                : [],
+        [order]
+    );
+    const hasFilters = filters.filterByCategory || search.enableSearch || sortRows.length > 0;
 
     const postsShortcode = useMemo(() => {
         let sc = '[all_posts_ajax';
@@ -114,19 +126,19 @@ export function useShortcodeBuilder() {
             sc += attr('label_search_button', search.labelSearchButton);
             sc += attr('search_placeholder', search.searchPlaceholder);
         }
-        if (order.enableOrder) {
-            sc += attr('enable_order', true);
-            sc += attr('label_newest_order', order.labelNewestOrder);
-            sc += attr('label_old_order', order.labelOldOrder);
-            if (order.orderByOptions.length) {
-                sc += attr('order_by_options', order.orderByOptions.join(','));
-                sc += attr('order_by_labels', order.orderByLabels);
-            }
+        if (sortRows.length) {
+            const encoded = sortRows
+                .map(
+                    (r) =>
+                        `${r.orderBy}:${r.direction}:${r.label.replace(/\|/g, '/').trim()}`
+                )
+                .join('|');
+            sc += attr('sort_options', encoded);
         }
         sc += attr('filter_id', filterId);
         sc += ']';
         return sc;
-    }, [filters, search, order, hasFilters, filterId]);
+    }, [filters, search, sortRows, hasFilters, filterId]);
 
     return {
         state,

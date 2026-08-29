@@ -35,22 +35,20 @@ if ( ! function_exists( 'wralm_render_filter_terms' ) ) {
      *
      * @param array               $terms     List of WP_Term objects (callers must pass a real array).
      * @param string              $taxonomy  Taxonomy slug.
-     * @param array               $by_parent [ parent_term_id => WP_Term[] ] — the whole term
-     *                                       tree fetched once, so this recursion never calls
-     *                                       get_terms() per term.
+     * @param array               $by_parent [ parent_term_id => WP_Term[] ] — whole tree, fetched once.
      * @param WRALM_Filter_Config  $config    Panel config.
      * @param int                 $depth     Current nesting depth (0 = root).
      * @param int                 $printed   Running count of buttons emitted, passed by reference.
      * @param int                 $limit     filter_item_limit (0 = unlimited).
      * @param array               $counts    [ term_id => visible post count ] from
      *                                       WRALM_Filter_Config::term_visible_counts(), or an
-     *                                       empty array when counts are disabled
-     *                                       (show_filter_count="false"). When non-empty a term
-     *                                       with 0 visible posts is skipped; when empty every
-     *                                       term is rendered and no count <span> is emitted.
+     *                                       empty array when counts are disabled. When non-empty
+     *                                       a 0-count term is skipped and a count <span> is
+     *                                       emitted; when empty neither happens.
      */
     function wralm_render_filter_terms( array $terms, $taxonomy, array $by_parent, WRALM_Filter_Config $config, $depth, &$printed, $limit, array $counts = array() ) {
         $show_count = ! empty( $counts );
+        $extra      = $config->filter_item_classes !== '' ? ' ' . $config->filter_item_classes : '';
 
         foreach ( $terms as $term ) {
             $children = isset( $by_parent[ $term->term_id ] ) ? $by_parent[ $term->term_id ] : array();
@@ -59,29 +57,28 @@ if ( ! function_exists( 'wralm_render_filter_terms' ) ) {
                 ? (int) $counts[ $term->term_id ]
                 : (int) $term->count;
 
-            // A term that would render a button leading to an empty result set:
-            // with counts on, that is any 0 visible-count term; with counts off,
-            // mirror the old hide_empty=true roots — skip a term with no posts
-            // of its own and no children.
+            // Skip a term that would lead to an empty result set: with counts on
+            // that is any 0-count term; with counts off, mirror the old
+            // hide_empty=true roots — no posts of its own and no children.
             if ( 0 === $count && ( $show_count || ! $children ) ) {
                 continue;
             }
 
-            $hidden      = ( $limit > 0 && $printed >= $limit ) ? ' hidden' : '';
+            $hidden      = ( $limit > 0 && $printed >= $limit ) ? ' is-hidden' : '';
             $depth_class = $depth === 0
-                ? ( $children ? ' parentCategory' : '' )
-                : ' childCategory';
+                ? ( $children ? ' wr-filters__item--parent' : '' )
+                : ' wr-filters__item--child';
 
             printf(
-                '<button type="submit" class="js-category-filter multiply-%s %s%s%s" data-taxonomy="%s" data-slug="%s"><span class="text">%s</span>%s</button>',
-                esc_attr( $config->multiply_filter ),
-                esc_attr( $config->filter_item_classes ),
+                '<button type="submit" class="wr-filters__item%s%s%s" data-multiply="%s" data-taxonomy="%s" data-slug="%s"><span class="wr-filters__item-label">%s</span>%s</button>',
+                esc_attr( $extra ),
                 esc_attr( $depth_class ),
                 esc_attr( $hidden ),
+                esc_attr( $config->multiply_filter ),
                 esc_attr( $taxonomy ),
                 esc_attr( $term->slug ),
                 esc_html( $term->name ),
-                $show_count ? '<span class="postCount">' . (int) $count . '</span>' : ''
+                $show_count ? '<span class="wr-filters__item-count">' . (int) $count . '</span>' : ''
             );
             $printed++;
 
@@ -125,41 +122,39 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
         }
     }
 }
+
+$list_extra   = $config->filter_row_classes !== '' ? ' ' . $config->filter_row_classes : '';
+$item_extra   = $config->filter_item_classes !== '' ? ' ' . $config->filter_item_classes : '';
+$expand_extra = $config->filter_expand_class !== '' ? ' ' . $config->filter_expand_class : '';
 ?>
-<form id="all_posts_filter_<?= esc_attr( $config->filter_id ) ?>"
-      class="all_posts_form"
-      role="search"
-      data-filter-id="<?= esc_attr( $config->filter_id ) ?>">
+<form class="wr-filters__form" role="search" data-filter-id="<?= esc_attr( $config->filter_id ) ?>">
     <?php if ($config->enable_search === 'true'): ?>
-        <div class="all-post-search-holder">
-            <input class="all-post-search"
+        <div class="wr-filters__search">
+            <input class="wr-filters__search-input"
                    type="search"
-                   id="all-post-search-<?= esc_attr( $config->filter_id ) ?>"
                    placeholder="<?= esc_attr($config->search_placeholder); ?>"
                    data-role="search">
-            <button type="submit"
-                    class="all-post-submit">
+            <button type="submit" class="wr-filters__search-submit">
                 <?= esc_html($config->label_search_button); ?>
             </button>
         </div>
     <?php endif; ?>
     <?php if ($config->filter_by_category === 'true' || $config->enable_clear_button === 'true'): ?>
         <?php
-        $filter_expand_label = $config->filter_expand_label;
-        $filter_expand_class = $config->filter_expand_class;
-        $limit               = (int) $config->filter_item_limit;
-        $printed             = 0;
-        $show_filter_count   = ( $config->show_filter_count !== 'false' );
+        $limit             = (int) $config->filter_item_limit;
+        $printed           = 0;
+        $show_filter_count = ( $config->show_filter_count !== 'false' );
         ?>
-        <div class="<?= esc_attr($config->filter_row_classes) ?>">
+        <div class="wr-filters__list<?= esc_attr( $list_extra ) ?>">
             <?php $categoriesArray = explode(',', $config->filter_taxonomy) ?>
             <?php if ($config->filter_by_category === 'true'): ?>
             <?php if ($config->filter_type === 'button'): ?>
                 <button type="submit"
-                        class="js-category-filter allCategories active multiply-<?= esc_attr($config->multiply_filter) ?> <?= esc_attr($config->filter_item_classes); ?>">
-                    <span class="text"><?= esc_html($config->all_category_button); ?></span>
+                        class="wr-filters__item wr-filters__item--all is-active<?= esc_attr( $item_extra ) ?>"
+                        data-multiply="<?= esc_attr($config->multiply_filter) ?>">
+                    <span class="wr-filters__item-label"><?= esc_html($config->all_category_button); ?></span>
                     <?php if ( $show_filter_count ): ?>
-                    <span class="postCount"><?= (int) WRALM_Filter_Config::visible_count( $config->post_type ) ?></span>
+                    <span class="wr-filters__item-count"><?= (int) WRALM_Filter_Config::visible_count( $config->post_type ) ?></span>
                     <?php endif; ?>
                 </button>
                 <?php foreach ($categoriesArray as $taxonomy) : ?>
@@ -168,13 +163,12 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
                     $name      = get_taxonomy( $taxonomy );
                     $by_parent = wralm_term_tree( $taxonomy );
                     $roots     = isset( $by_parent[0] ) ? $by_parent[0] : array();
-                    // Counts (one grouped query behind them) only when shown.
                     $term_counts = $show_filter_count
                         ? WRALM_Filter_Config::term_visible_counts( $config->post_type, $taxonomy )
                         : array();
                     ?>
                     <?php if ($roots && $config->filter_titles === 'true' && $name): ?>
-                        <p class="filterHeading"><?= esc_html($name->label) ?></p>
+                        <p class="wr-filters__heading"><?= esc_html($name->label) ?></p>
                     <?php endif; ?>
                     <?php wralm_render_filter_terms( $roots, $taxonomy, $by_parent, $config, 0, $printed, $limit, $term_counts ); ?>
                 <?php endforeach; ?>
@@ -187,10 +181,9 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
                     $by_parent = wralm_term_tree( $taxonomy );
                     $roots     = isset( $by_parent[0] ) ? $by_parent[0] : array();
                     ?>
-
-                    <div class="category-filter-select-holder">
+                    <div class="wr-filters__select">
                         <select <?= $config->multiply_filter == 'true' ? 'multiple' : '' ?>
-                                class="js-category-filter-select <?= esc_attr($config->filter_item_classes); ?>"
+                                class="wr-filters__select-control"
                                 data-taxonomy="<?= esc_attr($taxonomy) ?>">
                             <option value=""><?= esc_html( $label ) ?></option>
                             <?php wralm_render_filter_options( $roots, $taxonomy, $by_parent, 0 ); ?>
@@ -200,15 +193,14 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
             <?php endif; ?>
             <?php endif; /* filter_by_category */ ?>
             <?php if ($config->enable_clear_button === 'true'): ?>
-                <button type="submit"
-                        class="js-clear-filter">
+                <button type="submit" class="wr-filters__clear">
                     <?php esc_html_e('Clear Filters', 'wr-ajax-load-more-and-filters'); ?>
                 </button>
             <?php endif; ?>
         </div>
         <?php if ( $limit > 0 && $printed > $limit ) : ?>
-            <div class="<?= esc_attr($filter_expand_class) ?>">
-                <span><?= esc_html($filter_expand_label) ?></span>
+            <div class="wr-filters__expand<?= esc_attr( $expand_extra ) ?>">
+                <span><?= esc_html($config->filter_expand_label) ?></span>
             </div>
         <?php endif; ?>
     <?php endif; ?>

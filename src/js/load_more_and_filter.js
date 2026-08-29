@@ -1,11 +1,10 @@
 /**
  * WR Ajax Load More & Filters — public front-end controller.
  *
- * One `Instance` per `.ajax_row_holder`. Every selector is scoped to the
- * instance's holder (`this.$holder`) or to its filter panel (`this.$filters`,
- * matched by `data-filter-id`), so several `[all_posts_ajax]` /
- * `[all_posts_ajax_filters]` pairs can live on the same page without
- * interfering with each other.
+ * One `Instance` per `.wr-posts`. Every selector is scoped to the instance's
+ * holder (`this.$holder`) or to its filter panel (`this.$filters`, matched by
+ * `data-filter-id`), so several `[all_posts_ajax]` / `[all_posts_ajax_filters]`
+ * pairs can live on the same page without interfering with each other.
  *
  * URL sync is fully two-way: every filter / search / sort / pagination action
  * pushes the server-built `canonical_url`, and Back / Forward (`popstate`) plus
@@ -21,16 +20,21 @@ jQuery(function ($) {
     // holder element -> Instance, used by the delegated pagination + popstate handlers.
     var instances = new Map();
 
-    var NO_RESULTS = '<div class="no-results-found">no results found</div>';
+    var NO_RESULTS = '<div class="wr-posts__empty">no results found</div>';
 
-    /** { category, search } state -> the filter_<tax>= / filter_search arg map. */
-    function urlStateToFilterArgs(state) {
+    var DEFAULT_SORT = 'date:desc';
+
+    /** { category, search, sort } state -> the filter_<tax>= / filter_search / sort arg map. */
+    function urlStateToFilterArgs(state, defaultSort) {
         var args = {};
         Object.keys(state.category).forEach(function (t) {
             args['filter_' + t] = state.category[t].join(',');
         });
         if (state.search) {
             args['filter_search'] = state.search;
+        }
+        if (state.sort && state.sort !== defaultSort) {
+            args['sort'] = state.sort;
         }
         return args;
     }
@@ -61,37 +65,38 @@ jQuery(function ($) {
      * ------------------------------------------------------------------ */
 
     function toggleFilterButton($panel, $btn) {
-        var $buttons = $panel.find('.js-category-filter');
+        var $buttons = $panel.find('.wr-filters__item');
+        var $all = $buttons.filter('.wr-filters__item--all');
 
-        if ($btn.hasClass('allCategories')) {
+        if ($btn.hasClass('wr-filters__item--all')) {
             // "All" clears only the category filters (buttons + selects) — never
-            // the search field or the sort selects. Its own submit re-queries.
-            $buttons.removeClass('active');
-            $btn.addClass('active');
-            $panel.find('.js-category-filter-select').prop('selectedIndex', 0);
+            // the search field or the sort select. Its own submit re-queries.
+            $buttons.removeClass('is-active');
+            $btn.addClass('is-active');
+            $panel.find('.wr-filters__select-control').prop('selectedIndex', 0);
             return;
         }
 
-        if ($btn.hasClass('multiply-false')) {
+        if ($btn.attr('data-multiply') === 'false') {
             // Single-select: clicking the active term turns it off and restores
             // "All"; clicking another term replaces the selection.
-            if ($btn.hasClass('active')) {
-                $btn.removeClass('active');
-                $buttons.filter('.allCategories').addClass('active');
+            if ($btn.hasClass('is-active')) {
+                $btn.removeClass('is-active');
+                $all.addClass('is-active');
             } else {
-                $buttons.removeClass('active');
-                $btn.addClass('active');
+                $buttons.removeClass('is-active');
+                $btn.addClass('is-active');
             }
             return;
         }
 
-        if (!$btn.hasClass('active')) {
-            $btn.addClass('active');
-            $buttons.filter('.allCategories').removeClass('active');
+        if (!$btn.hasClass('is-active')) {
+            $btn.addClass('is-active');
+            $all.removeClass('is-active');
         } else {
-            $btn.removeClass('active');
-            if (!$buttons.filter('.active').not('.allCategories').length) {
-                $buttons.filter('.allCategories').addClass('active');
+            $btn.removeClass('is-active');
+            if (!$buttons.filter('.is-active').not('.wr-filters__item--all').length) {
+                $all.addClass('is-active');
             }
         }
     }
@@ -105,20 +110,20 @@ jQuery(function ($) {
             }
             $panel.data('wralmBound', true);
 
-            $panel.on('click', '.js-category-filter', function () {
+            $panel.on('click', '.wr-filters__item', function () {
                 toggleFilterButton($panel, $(this));
             });
 
-            $panel.on('click', '.js-clear-filter', function () {
-                var $buttons = $panel.find('.js-category-filter');
-                $buttons.removeClass('active');
-                $buttons.filter('.allCategories').addClass('active');
-                $panel.find('.all-post-search').val('');
-                $panel.find('.js-category-filter-select').prop('selectedIndex', 0);
+            $panel.on('click', '.wr-filters__clear', function () {
+                var $buttons = $panel.find('.wr-filters__item');
+                $buttons.removeClass('is-active');
+                $buttons.filter('.wr-filters__item--all').addClass('is-active');
+                $panel.find('.wr-filters__search-input').val('');
+                $panel.find('.wr-filters__select-control').prop('selectedIndex', 0);
             });
 
-            $panel.on('change', '.js-category-filter-select', function () {
-                $panel.find('.all_posts_form').trigger('submit');
+            $panel.on('change', '.wr-filters__select-control', function () {
+                $panel.find('.wr-filters__form').trigger('submit');
             });
         });
     }
@@ -129,17 +134,16 @@ jQuery(function ($) {
 
     function Instance($holder) {
         this.$holder = $holder;
-        this.$row = $holder.find('.ajax_row').first();
+        this.$row = $holder.find('.wr-posts__list').first();
 
         this.filterId = String($holder.data('filter-id') || '');
-        this.$filters = $('.ajax_filters_wrapper[data-filter-id="' + this.filterId + '"]');
+        this.$filters = $('.wr-filters[data-filter-id="' + this.filterId + '"]');
 
-        this.$form = this.$filters.find('.all_posts_form');
-        this.$search = this.$filters.find('.all-post-search');
-        this.$order = this.$filters.find('.js-post-order');
-        this.$orderby = this.$filters.find('.js-post-orderby');
-        this.$buttons = this.$filters.find('.js-category-filter');
-        this.$selects = this.$filters.find('.js-category-filter-select');
+        this.$form = this.$filters.find('.wr-filters__form');
+        this.$search = this.$filters.find('.wr-filters__search-input');
+        this.$sort = this.$filters.find('.wr-filters__sort-control');
+        this.$buttons = this.$filters.find('.wr-filters__item');
+        this.$selects = this.$filters.find('.wr-filters__select-control');
 
         this.syncFiltersUrl = String(this.$row.data('sync-filters-url')) !== 'false';
         this.syncPaginationUrl = String(this.$row.data('sync-pagination-url')) !== 'false';
@@ -158,7 +162,7 @@ jQuery(function ($) {
         this.restoreFromUrl();
     }
 
-    /** Raw `data-*` string off `.ajax_row` (never undefined). */
+    /** Raw `data-*` string off `.wr-posts__list` (never undefined). */
     Instance.prototype.rowAttr = function (name) {
         var value = this.$row.attr('data-' + name);
         return typeof value === 'undefined' || value === null ? '' : String(value);
@@ -168,15 +172,23 @@ jQuery(function ($) {
         return this.$search.length ? this.$search.val() || '' : '';
     };
 
-    Instance.prototype.orderValue = function () {
-        return (this.$order.length && this.$order.val()) || 'DESC';
+    /** Active sort as "orderby:order". Panel select wins; else what the server rendered. */
+    Instance.prototype.sortValue = function () {
+        if (this.$sort.length && this.$sort.val()) {
+            return this.$sort.val();
+        }
+        return this.rowAttr('sort') || DEFAULT_SORT;
     };
 
-    Instance.prototype.orderbyValue = function () {
-        if (this.$orderby.length && this.$orderby.val()) {
-            return this.$orderby.val();
+    /** The panel's first sort option — the sort the URL treats as "clean". */
+    Instance.prototype.defaultSort = function () {
+        if (this.$sort.length) {
+            var first = this.$sort.find('option').first().val();
+            if (first) {
+                return first;
+            }
         }
-        return this.rowAttr('orderby') || 'date';
+        return DEFAULT_SORT;
     };
 
     /** The set of taxonomy slugs this panel knows about (buttons + selects). */
@@ -205,9 +217,9 @@ jQuery(function ($) {
             category[taxonomy] = category[taxonomy].concat(slug);
         }
 
-        this.$buttons.filter('.active').each(function () {
+        this.$buttons.filter('.is-active').each(function () {
             var $btn = $(this);
-            if ($btn.hasClass('allCategories')) {
+            if ($btn.hasClass('wr-filters__item--all')) {
                 return;
             }
             push($btn.attr('data-taxonomy'), $btn.attr('data-slug'));
@@ -228,13 +240,16 @@ jQuery(function ($) {
      * URL <-> state
      * ---------------------------------------------------------------- */
 
-    /** Read { category, search, page } out of the current address bar. */
+    /** Read { category, search, sort, page } out of the current address bar. */
     Instance.prototype.readUrlState = function () {
         var urlParams = new URLSearchParams(window.location.search);
-        var state = { category: {}, search: '', page: 1 };
+        var state = { category: {}, search: '', sort: '', page: 1 };
 
         if (urlParams.has('filter_search')) {
             state.search = urlParams.get('filter_search');
+        }
+        if (urlParams.has('sort')) {
+            state.sort = urlParams.get('sort');
         }
 
         // Taxonomy filters are namespaced `filter_<taxonomy>=` so they never
@@ -263,25 +278,28 @@ jQuery(function ($) {
         return state;
     };
 
-    /** Force the panel DOM (buttons / selects / search) to match `state`. */
+    /** Force the panel DOM (buttons / selects / search / sort) to match `state`. */
     Instance.prototype.applyUrlState = function (state) {
         if (this.$search.length) {
             this.$search.val(state.search || '');
         }
+        if (this.$sort.length) {
+            this.$sort.val(state.sort || this.defaultSort());
+        }
 
         this.$buttons.each(function () {
             var $btn = $(this);
-            if ($btn.hasClass('allCategories')) {
+            if ($btn.hasClass('wr-filters__item--all')) {
                 return;
             }
             var t = $btn.attr('data-taxonomy');
             var slug = $btn.attr('data-slug');
             var on = !!(t && state.category[t] && $.inArray(slug, state.category[t]) !== -1);
-            $btn.toggleClass('active', on);
+            $btn.toggleClass('is-active', on);
         });
 
-        var anyActive = this.$buttons.filter('.active').not('.allCategories').length > 0;
-        this.$buttons.filter('.allCategories').toggleClass('active', !anyActive);
+        var anyActive = this.$buttons.filter('.is-active').not('.wr-filters__item--all').length > 0;
+        this.$buttons.filter('.wr-filters__item--all').toggleClass('is-active', !anyActive);
 
         this.$selects.each(function () {
             var t = $(this).attr('data-taxonomy');
@@ -305,8 +323,8 @@ jQuery(function ($) {
             category_id: this.rowAttr('cat-id'),
             category_taxonomy: this.rowAttr('cat-taxonomy'),
             search: this.searchTerm(),
-            order: this.orderValue(),
-            orderby: this.orderbyValue(),
+            sort: this.sortValue(),
+            default_sort: this.defaultSort(),
             more_classes: this.rowAttr('more-classes'),
             more_label: this.rowAttr('more-label'),
             prev_text: this.rowAttr('prev-text'),
@@ -353,7 +371,7 @@ jQuery(function ($) {
             self.xhr = null;
 
             if (res) {
-                self.$holder.find('.load_more_holder').remove();
+                self.$holder.find('.wr-posts__pagination').remove();
                 if (opts.clearRow) {
                     self.$row.empty();
                 }
@@ -380,7 +398,7 @@ jQuery(function ($) {
     };
 
     Instance.prototype.paginate = function ($link) {
-        var isLoadMore = $link.hasClass('load_more');
+        var isLoadMore = $link.hasClass('wr-posts__page--more');
         this.request({
             page: parseInt($link.attr('data-page'), 10) || 1,
             clearRow: !isLoadMore,
@@ -411,18 +429,18 @@ jQuery(function ($) {
             self.filter(true);
         });
 
-        // Order / order-by selects drive a re-query directly. An
-        // `enable_order="true"`-only panel renders no <form>, so routing this
-        // through the form's submit would be a dead end there.
-        this.$order.add(this.$orderby).on('change', function () {
+        // The sort select drives a re-query directly. A sort-only panel renders
+        // no <form>, so routing this through the form's submit would be a dead
+        // end there.
+        this.$sort.on('change', function () {
             self.filter(true);
         });
     };
 
     /**
      * Initial load: restore the panel + page from the address bar and, when the
-     * URL carries filter / search / a different page than the server rendered,
-     * fire one request for it (no push — the URL is already right).
+     * URL carries filter / search / sort / a different page than the server
+     * rendered, fire one request for it (no push — the URL is already right).
      */
     Instance.prototype.restoreFromUrl = function () {
         var state = this.readUrlState();
@@ -430,16 +448,18 @@ jQuery(function ($) {
 
         var hasFilter = Object.keys(state.category).length > 0;
         var hasSearch = state.search !== '';
+        var wantSort = state.sort || this.defaultSort();
+        var sortMatches = wantSort === (this.rowAttr('sort') || DEFAULT_SORT);
 
-        if (!hasFilter && !hasSearch && state.page === this.initPage) {
+        if (!hasFilter && !hasSearch && sortMatches && state.page === this.initPage) {
             return; // URL is the default the server already rendered
         }
 
-        // The server now reads filter_<tax>= / filter_search from the URL too
+        // The server reads filter_<tax>= / filter_search / sort from the URL too
         // (WRALM_Query_Config::from_atts). When it already rendered this exact
         // state + page, only the panel DOM needs syncing — no re-fetch.
-        if (state.page === this.initPage &&
-            sameFilterArgs(urlStateToFilterArgs(state), this.initFilters)) {
+        if (state.page === this.initPage && sortMatches &&
+            sameFilterArgs(urlStateToFilterArgs(state, this.defaultSort()), this.initFilters)) {
             return;
         }
 
@@ -469,14 +489,14 @@ jQuery(function ($) {
      * Boot + delegated routing
      * ------------------------------------------------------------------ */
 
-    $('.ajax_row_holder').each(function () {
+    $('.wr-posts').each(function () {
         instances.set(this, new Instance($(this)));
     });
 
-    $(document).on('click', '.pagination_holder .load_page', function (e) {
+    $(document).on('click', '.wr-posts__pagination a.wr-posts__page', function (e) {
         e.preventDefault();
 
-        var holder = $(this).closest('.ajax_row_holder')[0];
+        var holder = $(this).closest('.wr-posts')[0];
         if (!holder) {
             return;
         }

@@ -3,7 +3,7 @@
 Plugin Name:  Web Revizor: Ajax Load More & Filters
 Plugin URI:
 Description:  All posts ajax load more, search and filter
-Version:      1.7.0
+Version:      1.8.0
 Author:       WebRevizor
 Author URI:   https://github.com/web-revizor/
 License:      GPL2
@@ -17,7 +17,11 @@ if (!defined('ABSPATH')) {
 
 define('WRALM_PATH', plugin_dir_path(__FILE__));
 define('WRALM_URL', plugin_dir_url(__FILE__));
-define('WRALM_VERSION', '1.7.0');
+define('WRALM_VERSION', '1.8.0');
+// Gettext calls must pass this as a string literal (the POT scanner cannot see a
+// constant); the constant is for non-gettext contexts such as a future
+// load_plugin_textdomain() / wp_set_script_translations() call.
+define('WRALM_TEXTDOMAIN', 'wr-ajax-load-more-and-filters');
 
 require_once WRALM_PATH . 'inc/class-woo.php';
 require_once WRALM_PATH . 'inc/class-pagination.php';

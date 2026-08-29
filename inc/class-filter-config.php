@@ -14,27 +14,34 @@ class WRALM_Filter_Config {
     public $multiply_filter = 'false';
     public $filter_type = 'button';
     public $filter_titles = false;
-    public $filter_row_classes = 'filter_row';
-    public $filter_item_classes = 'filter_item';
+    public $filter_row_classes = '';
+    public $filter_item_classes = '';
     public $filter_item_limit = 0;
     public $filter_expand_label = '';
-    public $filter_expand_class = 'filter_expand';
+    public $filter_expand_class = '';
     public $filter_taxonomy = 'category';
     public $all_category_button = '';
     public $show_filter_count = 'true';
     public $enable_search = false;
     public $label_search_button = '';
     public $search_placeholder = '';
-    public $enable_order = false;
-    public $label_newest_order = '';
-    public $label_old_order = '';
     public $filter_id = '';
 
-    public $orderby_options = '';
-    public $orderby_labels = '';
+    /** Raw `sort_options` attribute: "orderby:order:label|orderby:order:label". */
+    public $sort_options = '';
 
     /** Seconds a stampede lock is held while a count cache rebuilds. */
     const LOCK_TTL = 30;
+
+    /**
+     * Per-filter_id default sort ("orderby:order"), registered by the panel's
+     * from_atts() so the paired [all_posts_ajax] list (rendered after the panel
+     * in a normal layout) can seed its first query without a corrective AJAX
+     * round-trip. Read via default_sort_for().
+     *
+     * @var array<string,string>
+     */
+    private static $default_sort = array();
 
     public static function shortcode_defaults() {
         return array(
@@ -44,23 +51,19 @@ class WRALM_Filter_Config {
             'multiply_filter'     => 'false',
             'filter_type'         => 'button',
             'filter_titles'       => false,
-            'filter_row_classes'  => 'filter_row',
-            'filter_item_classes' => 'filter_item',
+            'filter_row_classes'  => '',
+            'filter_item_classes' => '',
             'filter_item_limit'   => 0,
             'filter_expand_label' => __( 'See all', 'wr-ajax-load-more-and-filters' ),
-            'filter_expand_class' => 'filter_expand',
+            'filter_expand_class' => '',
             'filter_taxonomy'     => 'category',
             'all_category_button' => __( 'All', 'wr-ajax-load-more-and-filters' ),
             'show_filter_count'   => 'true',
             'enable_search'       => false,
             'label_search_button' => __( 'Search', 'wr-ajax-load-more-and-filters' ),
             'search_placeholder'  => __( 'Search', 'wr-ajax-load-more-and-filters' ),
-            'enable_order'        => false,
-            'label_newest_order'  => __( 'Newest First', 'wr-ajax-load-more-and-filters' ),
-            'label_old_order'     => __( 'Old First', 'wr-ajax-load-more-and-filters' ),
             'filter_id'           => '',
-            'order_by_options'    => '',
-            'order_by_labels'     => '',
+            'sort_options'        => '',
         );
     }
 
@@ -85,17 +88,55 @@ class WRALM_Filter_Config {
         $c->enable_search       = $a['enable_search'];
         $c->label_search_button = $a['label_search_button'];
         $c->search_placeholder  = $a['search_placeholder'];
-        $c->enable_order        = $a['enable_order'];
-        $c->label_newest_order  = $a['label_newest_order'];
-        $c->label_old_order     = $a['label_old_order'];
-        $c->orderby_options     = $a['order_by_options'];
-        $c->orderby_labels      = $a['order_by_labels'];
+        $c->sort_options        = (string) $a['sort_options'];
 
         $c->filter_id = $a['filter_id'] !== ''
             ? sanitize_key( $a['filter_id'] )
             : sanitize_key( $a['post_type'] ) . '_filter';
 
+        // Register this panel's first sort option so the paired list can seed
+        // its initial query from it (see WRALM_Query_Config::from_atts).
+        $parsed = self::parse_sort_options( $c->sort_options );
+        if ( $parsed ) {
+            self::$default_sort[ $c->filter_id ] = $parsed[0]['orderby'] . ':' . $parsed[0]['order'];
+        }
+
         return $c;
+    }
+
+    /**
+     * Parse the `sort_options` attribute into a list of options.
+     * Records are `|`-separated; each is `orderby:order:label` split on the
+     * first two colons, so a label may itself contain a colon. `orderby` is
+     * whitelisted, `order` is `asc`/`desc`, an empty label is derived from the
+     * key.
+     *
+     * @return array<int,array{orderby:string,order:string,value:string,label:string}>
+     */
+    public static function parse_sort_options( $raw ) {
+        $out = array();
+        foreach ( array_filter( array_map( 'trim', explode( '|', (string) $raw ) ) ) as $record ) {
+            $bits    = explode( ':', $record, 3 );
+            $orderby = WRALM_Query_Config::sanitize_orderby( isset( $bits[0] ) ? trim( $bits[0] ) : '' );
+            $order   = ( isset( $bits[1] ) && 'asc' === strtolower( trim( $bits[1] ) ) ) ? 'asc' : 'desc';
+            $label   = isset( $bits[2] ) ? sanitize_text_field( $bits[2] ) : '';
+            if ( '' === $label ) {
+                $label = ucfirst( str_replace( '_', ' ', $orderby ) ) . ( 'asc' === $order ? ' ↑' : ' ↓' );
+            }
+            $out[] = array(
+                'orderby' => $orderby,
+                'order'   => $order,
+                'value'   => $orderby . ':' . $order,
+                'label'   => $label,
+            );
+        }
+        return $out;
+    }
+
+    /** The registered first sort option ("orderby:order") for $filter_id, or ''. */
+    public static function default_sort_for( $filter_id ) {
+        $filter_id = sanitize_key( $filter_id );
+        return isset( self::$default_sort[ $filter_id ] ) ? self::$default_sort[ $filter_id ] : '';
     }
 
     /**
