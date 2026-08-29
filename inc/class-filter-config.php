@@ -35,6 +35,9 @@ class WRALM_Filter_Config {
     public $orderby_options = '';
     public $orderby_labels = '';
 
+    /** Seconds a stampede lock is held while a count cache rebuilds. */
+    const LOCK_TTL = 30;
+
     public static function shortcode_defaults() {
         return array(
             'post_type'           => 'post',
@@ -149,6 +152,15 @@ class WRALM_Filter_Config {
             return (int) $cached;
         }
 
+        // Stampede guard: while one request rebuilds, others fall back to the
+        // core (cached) publish count for up to LOCK_TTL seconds instead of
+        // all running the query at once. Effective with a persistent object
+        // cache; a per-request no-op without one.
+        if ( ! wp_cache_add( $cache_key . '_lock', 1, 'wralm', self::LOCK_TTL ) ) {
+            $obj = wp_count_posts( $post_type );
+            return isset( $obj->publish ) ? (int) $obj->publish : 0;
+        }
+
         $args = array(
             'post_type'              => $post_type,
             'post_status'            => 'publish',
@@ -159,8 +171,6 @@ class WRALM_Filter_Config {
             'update_post_meta_cache' => false,
             'update_post_term_cache' => false,
             'meta_query'             => array(
-                'relation' => 'OR',
-                array( 'key' => 'all_posts_ajax_hide', 'value' => '1', 'compare' => '!=' ),
                 array( 'key' => 'all_posts_ajax_hide', 'compare' => 'NOT EXISTS' ),
             ),
         );
@@ -176,6 +186,7 @@ class WRALM_Filter_Config {
         $count = (int) $q->found_posts;
 
         set_transient( $cache_key, $count, 5 * MINUTE_IN_SECONDS );
+        wp_cache_delete( $cache_key . '_lock', 'wralm' );
 
         return $count;
     }
@@ -201,53 +212,98 @@ class WRALM_Filter_Config {
             return $cached;
         }
 
-        $terms = get_terms( array(
-            'taxonomy'   => $taxonomy,
-            'hide_empty' => false,
-        ) );
+        // Stampede guard (see visible_count). Locked requests render the panel
+        // without counts for up to LOCK_TTL seconds rather than each rebuild.
+        if ( ! wp_cache_add( $cache_key . '_lock', 1, 'wralm', self::LOCK_TTL ) ) {
+            return array();
+        }
+
+        $counts = self::compute_term_visible_counts( $post_type, $taxonomy );
+
+        set_transient( $cache_key, $counts, 5 * MINUTE_IN_SECONDS );
+        wp_cache_delete( $cache_key . '_lock', 'wralm' );
+
+        return $counts;
+    }
+
+    /**
+     * The actual work behind term_visible_counts(): ONE grouped SQL query for
+     * the direct per-term counts (replacing the old one-WP_Query-per-term
+     * loop), then a PHP roll-up so a parent term's number includes posts on its
+     * descendants (matching build_tax_query's default include_children).
+     *
+     * @return array [ term_id => count ]
+     */
+    private static function compute_term_visible_counts( $post_type, $taxonomy ) {
+        global $wpdb;
+
+        $woo_where = '';
+        if ( class_exists( 'WRALM_Woo' ) && WRALM_Woo::is_product_query( $post_type ) ) {
+            $vis = WRALM_Woo::visibility_tax_query();
+            if ( $vis && ! empty( $vis['terms'] ) ) {
+                // visibility_tax_query() returns term_taxonomy_id values.
+                $ttids = implode( ',', array_map( 'absint', (array) $vis['terms'] ) );
+                $woo_where = " AND NOT EXISTS (
+                    SELECT 1 FROM {$wpdb->term_relationships} vtr
+                    WHERE vtr.object_id = p.ID AND vtr.term_taxonomy_id IN ({$ttids}) )";
+            }
+        }
+
+        $sql = $wpdb->prepare(
+            "SELECT tt.term_id AS term_id, COUNT(DISTINCT p.ID) AS c
+             FROM {$wpdb->term_taxonomy} tt
+             JOIN {$wpdb->term_relationships} tr ON tr.term_taxonomy_id = tt.term_taxonomy_id
+             JOIN {$wpdb->posts} p ON p.ID = tr.object_id
+             WHERE tt.taxonomy = %s
+               AND p.post_type = %s
+               AND p.post_status = 'publish'
+               AND NOT EXISTS (
+                   SELECT 1 FROM {$wpdb->postmeta} m
+                   WHERE m.post_id = p.ID
+                     AND m.meta_key = 'all_posts_ajax_hide'
+                     AND m.meta_value = '1'
+               )
+               {$woo_where}
+             GROUP BY tt.term_id",
+            $taxonomy,
+            $post_type
+        );
+
+        $direct = array();
+        foreach ( (array) $wpdb->get_results( $sql ) as $row ) {
+            $direct[ (int) $row->term_id ] = (int) $row->c;
+        }
+
+        $terms = get_terms( array( 'taxonomy' => $taxonomy, 'hide_empty' => false ) );
         if ( ! is_array( $terms ) ) {
             $terms = array();
         }
-
-        $meta_query = array(
-            'relation' => 'OR',
-            array( 'key' => 'all_posts_ajax_hide', 'value' => '1', 'compare' => '!=' ),
-            array( 'key' => 'all_posts_ajax_hide', 'compare' => 'NOT EXISTS' ),
-        );
-        $woo_vis = ( class_exists( 'WRALM_Woo' ) && WRALM_Woo::is_product_query( $post_type ) )
-            ? WRALM_Woo::visibility_tax_query()
-            : array();
-
-        $counts = array();
-        foreach ( $terms as $term ) {
-            $tax_query = array(
-                array(
-                    'taxonomy' => $taxonomy,
-                    'field'    => 'term_id',
-                    'terms'    => array( (int) $term->term_id ),
-                ),
-            );
-            if ( $woo_vis ) {
-                $tax_query[] = $woo_vis;
-            }
-
-            $q = new WP_Query( array(
-                'post_type'              => $post_type,
-                'post_status'            => 'publish',
-                'posts_per_page'         => 1,
-                'fields'                 => 'ids',
-                'no_found_rows'          => false,
-                'ignore_sticky_posts'    => true,
-                'update_post_meta_cache' => false,
-                'update_post_term_cache' => false,
-                'meta_query'             => $meta_query,
-                'tax_query'              => $tax_query,
-            ) );
-
-            $counts[ (int) $term->term_id ] = (int) $q->found_posts;
+        $parent = array();
+        foreach ( $terms as $t ) {
+            $parent[ (int) $t->term_id ] = (int) $t->parent;
         }
 
-        set_transient( $cache_key, $counts, 5 * MINUTE_IN_SECONDS );
+        // Roll each term's direct count up to its ancestors. A post tagged to
+        // BOTH a parent and its child is counted at each here — a small
+        // over-count in that uncommon case, accepted to keep this to one query.
+        $counts = $direct;
+        foreach ( $direct as $term_id => $c ) {
+            if ( ! $c ) {
+                continue;
+            }
+            $p     = isset( $parent[ $term_id ] ) ? $parent[ $term_id ] : 0;
+            $guard = 0;
+            while ( $p && $guard++ < 50 ) {
+                $counts[ $p ] = ( isset( $counts[ $p ] ) ? $counts[ $p ] : 0 ) + $c;
+                $p = isset( $parent[ $p ] ) ? $parent[ $p ] : 0;
+            }
+        }
+
+        foreach ( array_keys( $parent ) as $term_id ) {
+            if ( ! isset( $counts[ $term_id ] ) ) {
+                $counts[ $term_id ] = 0;
+            }
+        }
 
         return $counts;
     }
