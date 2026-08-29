@@ -45,5 +45,6 @@ class Web_Revizor_Ajax_Load_More
 }
 
 register_activation_hook(__FILE__, ['WRALM_Admin', 'create_card_template']);
+register_activation_hook(__FILE__, ['WRALM_Search_ACF', 'on_activate']);
 
 new Web_Revizor_Ajax_Load_More();
