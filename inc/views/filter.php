@@ -144,7 +144,7 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
                     <?php
                     $taxonomy = trim( $taxonomy );
                     $name     = get_taxonomy( $taxonomy );
-                    $label    = $name->label;
+                    $label    = $name ? $name->label : '';
                     $roots    = get_terms( array(
                         'taxonomy'   => $taxonomy,
                         'parent'     => 0,
@@ -158,7 +158,7 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
                                 class="js-category-filter-select <?= esc_attr($load_more_variables['filter_item_classes']); ?>"
                                 data-taxonomy="<?= esc_attr($taxonomy) ?>">
                             <option value=""><?= esc_html( $label ) ?></option>
-                            <?php wralm_render_filter_options( is_array($roots) ? $roots : array(), $taxonomy, 0 ); ?>
+                            <?php wralm_render_filter_options( $roots, $taxonomy, 0 ); ?>
                         </select>
                     </div>
                 <?php endforeach; ?>
