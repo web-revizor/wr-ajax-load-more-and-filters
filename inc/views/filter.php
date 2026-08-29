@@ -19,8 +19,11 @@ if ( ! function_exists( 'wralm_render_filter_terms' ) ) {
      * @param int    $depth    Current nesting depth (0 = root).
      * @param int    $printed  Running count of buttons emitted, passed by reference.
      * @param int    $limit    filter_item_limit (0 = unlimited).
+     * @param array  $counts   [ term_id => visible post count ] from
+     *                         WRALM_Filter_Config::term_visible_counts(); a term
+     *                         missing from the map falls back to $term->count.
      */
-    function wralm_render_filter_terms( array $terms, $taxonomy, array $v, $depth, &$printed, $limit ) {
+    function wralm_render_filter_terms( array $terms, $taxonomy, array $v, $depth, &$printed, $limit, array $counts = array() ) {
         foreach ( $terms as $term ) {
             $children = get_terms( array(
                 'taxonomy'   => $taxonomy,
@@ -29,6 +32,16 @@ if ( ! function_exists( 'wralm_render_filter_terms' ) ) {
             ) );
             if ( ! is_array( $children ) ) {
                 $children = array();
+            }
+
+            $count = array_key_exists( $term->term_id, $counts )
+                ? (int) $counts[ $term->term_id ]
+                : (int) $term->count;
+
+            // A term with nothing visible once the list's exclusions are
+            // applied would render a button that shows an empty result set.
+            if ( 0 === $count ) {
+                continue;
             }
 
             $hidden      = ( $limit > 0 && $printed >= $limit ) ? ' hidden' : '';
@@ -45,12 +58,12 @@ if ( ! function_exists( 'wralm_render_filter_terms' ) ) {
                 esc_attr( $taxonomy ),
                 esc_attr( $term->slug ),
                 esc_html( $term->name ),
-                (int) $term->count
+                $count
             );
             $printed++;
 
             if ( $children ) {
-                wralm_render_filter_terms( $children, $taxonomy, $v, $depth + 1, $printed, $limit );
+                wralm_render_filter_terms( $children, $taxonomy, $v, $depth + 1, $printed, $limit, $counts );
             }
         }
     }
@@ -133,11 +146,12 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
                         'hide_empty' => true,
                     ) );
                     $roots = is_array( $roots ) ? $roots : array();
+                    $term_counts = WRALM_Filter_Config::term_visible_counts( $load_more_variables['post_type'], $taxonomy );
                     ?>
                     <?php if ($roots && $load_more_variables['filter_titles'] === 'true' && $name): ?>
                         <p class="filterHeading"><?= esc_html($name->label) ?></p>
                     <?php endif; ?>
-                    <?php wralm_render_filter_terms( $roots, $taxonomy, $load_more_variables, 0, $printed, $limit ); ?>
+                    <?php wralm_render_filter_terms( $roots, $taxonomy, $load_more_variables, 0, $printed, $limit, $term_counts ); ?>
                 <?php endforeach; ?>
             <?php elseif ($load_more_variables['filter_type'] === 'select'): ?>
                 <?php foreach ($categoriesArray as $taxonomy) : ?>

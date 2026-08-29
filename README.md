@@ -205,10 +205,12 @@ themes / custom CSS / custom JS that reached into the plugin's markup:
 - **ACF search is now scoped.** The site-wide `posts_search` ACF extension now
   applies **only** to WRALM shortcode queries. To restore the old global
   behaviour: `add_filter( 'wralm_extend_all_search', '__return_true' );`.
-- **Per-term counts are still raw.** The count shown next to each individual
-  filter button is still the raw WordPress taxonomy term count and may include
-  hidden / catalog-invisible posts. Only the "All (N)" count is corrected to
-  match the actual result set.
+- **Per-term counts are corrected (1.5.1).** The number next to each filter
+  button now counts only posts the list would actually show — "Hide from list"
+  meta and, for products, WooCommerce catalog / stock visibility are applied,
+  and child-term posts are included (matching what clicking the button shows).
+  A term with nothing visible is dropped from the panel. Cached per
+  `(post_type, taxonomy)` in a 5-minute transient, like the "All (N)" count.
 - **Initial render forces `post_status="publish"`.** The `[all_posts_ajax]`
   first (server-side) render now always queries only published posts. 1.4.0 let
   capable logged-in users see private / draft posts on page 1, while AJAX pages
