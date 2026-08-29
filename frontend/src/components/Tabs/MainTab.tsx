@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { MainSettings, PaginationType } from '@/src/types';
 import Input from '@/src/components/sharedComponents/Input/Input';
 import Select from '@/src/components/sharedComponents/Select/Select';
+import Toggle from '@/src/components/sharedComponents/Toggle/Toggle';
 
 interface Props {
   postTypes: string[];
@@ -38,6 +39,14 @@ export function MainTab({ postTypes, main, setMain }: Props) {
         }))}
         searchable={true}
       />
+
+      {main.postType === 'product' && (
+        <p className='text-[12px] text-white/60'>
+          WooCommerce detected on the server: catalog-hidden / out-of-stock
+          products are excluded automatically; use the Order tab for price /
+          popularity / rating sorting.
+        </p>
+      )}
 
       <Select
         label='Type Pagination'
@@ -83,6 +92,16 @@ export function MainTab({ postTypes, main, setMain }: Props) {
         value={main.nextText}
         onChange={(v) => update('nextText', v.target.value)}
       />
+
+      <Toggle
+        size='small'
+        label='Sync filters to URL'
+        value={main.updateUrl}
+        onChange={(v) => update('updateUrl', v)}
+      />
+      <p className='text-[12px] text-white/60'>
+        Off = no address-bar changes, pagination links are inert anchors.
+      </p>
     </div>
   );
 }

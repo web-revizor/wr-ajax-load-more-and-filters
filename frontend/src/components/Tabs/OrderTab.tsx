@@ -3,11 +3,22 @@ import type { OrderSettings } from '@/src/types';
 import Toggle from '@/src/components/sharedComponents/Toggle/Toggle';
 import SlideDown from '@/src/components/sharedComponents/SlideDown/SlideDown';
 import Input from '@/src/components/sharedComponents/Input/Input';
+import Select from '@/src/components/sharedComponents/Select/Select';
 
 interface Props {
   order: OrderSettings;
   setOrder: Dispatch<SetStateAction<OrderSettings>>;
 }
+
+const ORDERBY_KEYS: { value: string; label: string }[] = [
+  { value: 'date', label: 'Date' },
+  { value: 'title', label: 'Title' },
+  { value: 'menu_order', label: 'Menu order' },
+  { value: 'rand', label: 'Random' },
+  { value: 'price', label: 'Price (WooCommerce)' },
+  { value: 'popularity', label: 'Popularity (WooCommerce)' },
+  { value: 'rating', label: 'Rating (WooCommerce)' },
+];
 
 export function OrderTab({ order, setOrder }: Props) {
   function update<K extends keyof OrderSettings>(
@@ -44,6 +55,25 @@ export function OrderTab({ order, setOrder }: Props) {
               value={order.labelOldOrder}
               placeholder='Old First'
               onChange={(v) => update('labelOldOrder', v.target.value)}
+            />
+
+            <Select
+              label='Order-by options (optional)'
+              multiple
+              value={order.orderByOptions}
+              onChange={(v) =>
+                update('orderByOptions', Array.isArray(v) ? v : [v])
+              }
+              options={ORDERBY_KEYS}
+            />
+
+            <Input
+              label='Order-by labels (csv, parallel to options)'
+              name='order_by_labels'
+              id='order_by_labels'
+              value={order.orderByLabels}
+              placeholder='Newest,By title'
+              onChange={(v) => update('orderByLabels', v.target.value)}
             />
           </div>
         )}

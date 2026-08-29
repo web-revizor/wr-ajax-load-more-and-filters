@@ -8,6 +8,7 @@ const defaultMain: MainSettings = {
     loadMoreLabel: '',
     prevText: '',
     nextText: '',
+    updateUrl: true,
 };
 
 const defaultClasses: ClassSettings = {
@@ -37,6 +38,8 @@ const defaultOrder: OrderSettings = {
     enableOrder: false,
     labelNewestOrder: '',
     labelOldOrder: '',
+    orderByOptions: [],
+    orderByLabels: '',
 };
 
 /** Wraps a value in a shortcode attribute, skipping empty strings. */
@@ -70,6 +73,9 @@ export function useShortcodeBuilder() {
         sc += attr('load_more_classes', classes.loadMoreClasses);
         sc += attr('prev_text', main.prevText);
         sc += attr('next_text', main.nextText);
+        if (!main.updateUrl) {
+            sc += ' update_url="false"';
+        }
         if (hasFilters) {
             sc += attr('filter_id', filterId);
         }
@@ -104,6 +110,10 @@ export function useShortcodeBuilder() {
             sc += attr('enable_order', true);
             sc += attr('label_newest_order', order.labelNewestOrder);
             sc += attr('label_old_order', order.labelOldOrder);
+            if (order.orderByOptions.length) {
+                sc += attr('order_by_options', order.orderByOptions.join(','));
+                sc += attr('order_by_labels', order.orderByLabels);
+            }
         }
         sc += attr('filter_id', filterId);
         sc += ']';
