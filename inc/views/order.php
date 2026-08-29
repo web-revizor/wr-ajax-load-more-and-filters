@@ -21,3 +21,19 @@ $load_more_variables = isset( $config ) && $config instanceof WRALM_Filter_Confi
         </option>
     </select>
 </div>
+
+<?php
+$orderby_opts   = array_values( array_filter( array_map( 'trim', explode( ',', (string) ( $load_more_variables['order_by_options'] ?? '' ) ) ) ) );
+$orderby_labels = array_values( array_map( 'trim', explode( ',', (string) ( $load_more_variables['order_by_labels'] ?? '' ) ) ) );
+?>
+<?php if ( $orderby_opts ) : ?>
+    <div>
+        <select class="js-post-orderby"
+                data-role="orderby"
+                data-filter-id="<?= esc_attr( $load_more_variables['filter_id'] ?? '' ) ?>">
+            <?php foreach ( $orderby_opts as $i => $key ) : ?>
+                <option value="<?= esc_attr( $key ) ?>"><?= esc_html( isset( $orderby_labels[ $i ] ) && $orderby_labels[ $i ] !== '' ? $orderby_labels[ $i ] : ucfirst( str_replace( '_', ' ', $key ) ) ) ?></option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+<?php endif; ?>

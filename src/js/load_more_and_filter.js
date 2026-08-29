@@ -74,7 +74,7 @@ jQuery(function ($) {
 
             $panel.on(
                 'change',
-                '.js-category-filter-select, .js-post-order, .js-post-orderby',
+                '.js-category-filter-select',
                 function () {
                     $panel.find('.all_posts_form').trigger('submit');
                 }
@@ -300,6 +300,13 @@ jQuery(function ($) {
 
         this.$form.on('submit', function (e) {
             e.preventDefault();
+            self.filter(1, true);
+        });
+
+        // Order / order-by selects drive a re-query directly. An
+        // `enable_order="true"`-only panel renders no <form>, so routing this
+        // through the form's submit would be a dead end there.
+        this.$order.add(this.$orderby).on('change', function () {
             self.filter(1, true);
         });
     };

@@ -33,7 +33,7 @@ class WRALM_Filter_Config {
     public $update_url = true;
 
     public $orderby_options = '';
-    public $orderby_labels = array();
+    public $orderby_labels = '';
 
     public static function shortcode_defaults() {
         return array(
@@ -58,6 +58,8 @@ class WRALM_Filter_Config {
             'label_old_order'     => __( 'Old First', 'wr-ajax-load-more-and-filters' ),
             'filter_id'           => '',
             'update_url'          => 'true',
+            'order_by_options'    => '',
+            'order_by_labels'     => '',
         );
     }
 
@@ -84,6 +86,8 @@ class WRALM_Filter_Config {
         $c->enable_order        = $a['enable_order'];
         $c->label_newest_order  = $a['label_newest_order'];
         $c->label_old_order     = $a['label_old_order'];
+        $c->orderby_options     = $a['order_by_options'];
+        $c->orderby_labels      = $a['order_by_labels'];
 
         $c->filter_id = $a['filter_id'] !== ''
             ? sanitize_key( $a['filter_id'] )
@@ -95,7 +99,7 @@ class WRALM_Filter_Config {
 
     /**
      * The old $load_more_variables associative shape (18 keys) plus
-     * filter_id / enable_order / orderby_options / orderby_labels for later
+     * filter_id / enable_order / order_by_options / order_by_labels for later
      * tasks. Harmless extras for the current views.
      */
     public function to_legacy_array() {
@@ -121,8 +125,8 @@ class WRALM_Filter_Config {
             'filter_id'           => $this->filter_id,
             'enable_order'        => $this->enable_order,
             'update_url'          => $this->update_url,
-            'orderby_options'     => $this->orderby_options,
-            'orderby_labels'      => $this->orderby_labels,
+            'order_by_options'    => $this->orderby_options,
+            'order_by_labels'     => $this->orderby_labels,
         );
     }
 }
