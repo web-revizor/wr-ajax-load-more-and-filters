@@ -255,9 +255,19 @@ The filter panel used to omit the button for `get_queried_object()` (the term
 you were "already browsing"). On a WooCommerce faceted URL (`?product_cat=…`)
 WordPress elevates that param into the main query, so the button for an active
 filter disappeared and its state could not be restored. Every term button is
-now always rendered. `from_atts` also stops treating a `?taxonomy=slug` query
-param as an archive context (no more stray pretty `/page/N/` links on such
-pages).
+now always rendered, and a term that came in via a query param no longer
+double-scopes the query.
+
+### Faceted URLs keep pretty pagination
+
+A multi-term faceted URL — `/shop/?product_cat=courses,figma` — 404s the main
+query (no single term matches `courses,figma`). That used to flip pagination to
+`?paged=N`, which WordPress then canonical-redirects back to `/page/N/`
+(re-encoding the comma as `%2C`), so the pagination URL flapped between two
+forms. `from_atts` now recognises any `?<taxonomy>=` query param on a
+non-singular page as an archive context and emits pretty `/page/N/` from the
+first render. Commas in multi-term values are kept percent-encoded (`%2C`)
+everywhere — the form WordPress itself normalises to.
 
 ## Known limitations
 
