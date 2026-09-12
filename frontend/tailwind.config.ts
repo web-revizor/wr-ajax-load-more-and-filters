@@ -1,35 +1,22 @@
 import { Config } from 'tailwindcss';
 import plugin from 'tailwindcss/plugin';
+// The shared package's "exports" map points this subpath at a plain .js
+// file with no accompanying .d.ts and no "types"/"typesVersions" entry, so
+// TS's `bundler` moduleResolution can't find a type for it even with
+// `allowJs: true` (allowJs only covers .js files inside this project's own
+// rootDir, not ones resolved through another package's export map) — this
+// is a real, minor gap in the shared package, not a bug in this file.
+// @ts-expect-error -- no types published for '@web-revizor/ui-kit/tailwind-preset'
+import sharedPreset from '@web-revizor/ui-kit/tailwind-preset';
 
 const config: Config = {
+  presets: [sharedPreset],
   important: '.web-revizor-container',
   content: ['./*.php', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
-      colors: {
-        primary: '#ffb0d0',
-        'surface-variant': '#353438',
-        'outline-variant': '#584049',
-        'on-secondary': '#5b1044',
-        'on-surface-variant': '#dfbec9',
-        'surface-container': '#1f1f22',
-        background: '#131316',
-        'on-surface': '#e4e1e6',
-        'on-primary-fixed-variant': '#8c0057',
-        'surface-container-low': '#1b1b1e',
-        'surface-container-lowest': '#0e0e11',
-        'primary-container': '#bd0078',
-        error: '#ffb4ab',
-        secondary: '#ffaedb',
-        'on-primary': '#63003d',
-      },
       borderRadius: {
-        28: '28px',
-        DEFAULT: '0.25rem',
-        lg: '0.5rem',
-        xl: '0.75rem',
         2: '2px',
-        full: '9999px',
       },
       spacing: {
         'margin-desktop': '48px',
