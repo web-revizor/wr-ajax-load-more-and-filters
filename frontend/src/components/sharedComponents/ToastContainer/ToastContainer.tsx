@@ -1,20 +1,18 @@
 import React from 'react';
-import Toast, { ToastProps } from '@/src/components/sharedComponents/Toast/Toast';
+import { ToastContainer as SharedToastContainer } from '@web-revizor/ui-kit/components/ToastContainer';
+import { ToastProps } from '@web-revizor/ui-kit/components/Toast';
 
-interface ToastContainerProps {
-  toasts: ToastProps[];
+interface Props {
+  toasts: Omit<ToastProps, 'onRemove' | 'closeIconName'>[];
+  onRemove: (id: string) => void;
 }
 
-const ToastContainer: React.FC<ToastContainerProps> = ({ toasts }) => {
-  if (toasts.length === 0) return null;
-
-  return (
-    <div className='fixed top-16 left-1/2 -translate-x-1/2 px-5 w-full z-[1000002] pointer-events-none'>
-      {toasts.map((toast) => (
-        <Toast key={toast.id} {...toast} />
-      ))}
-    </div>
-  );
-};
+const ToastContainer: React.FC<Props> = ({ toasts, onRemove }) => (
+  <SharedToastContainer
+    toasts={toasts}
+    onRemove={onRemove}
+    closeIconName={'common/close-toast'}
+  />
+);
 
 export default React.memo(ToastContainer);

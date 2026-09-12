@@ -23,7 +23,9 @@ interface ToastContextType {
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
 export const ToastProvider = () => {
-  const [toasts, setToasts] = useState<ToastProps[]>([]);
+  const [toasts, setToasts] = useState<
+    Omit<ToastProps, 'onRemove' | 'closeIconName'>[]
+  >([]);
   const counterRef = useRef(0);
 
   const addToast = useCallback(
@@ -48,7 +50,7 @@ export const ToastProvider = () => {
 
   return (
     <ToastContext.Provider value={{ addToast, removeToast }}>
-      <ToastContainer toasts={toasts} />
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </ToastContext.Provider>
   );
 };
