@@ -12,6 +12,8 @@ const ToastContainer: React.FC<Props> = ({ toasts, onRemove }) => (
     toasts={toasts}
     onRemove={onRemove}
     closeIconName={'common/close-toast'}
+    closeIconSize={16}
+    closeButtonClassName='coloredText absolute right-2 top-1/2 -translate-y-1/2'
   />
 );
 
