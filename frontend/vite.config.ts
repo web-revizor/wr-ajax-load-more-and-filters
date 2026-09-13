@@ -37,11 +37,22 @@ export default defineConfig({
             cssFileName: 'style',
         },
         rollupOptions: {
-            external: ['react', 'react-dom'],
+            // `react-dom/client` (used by src/index.tsx's createRoot) is a
+            // different module specifier from the bare `react-dom` below —
+            // Rollup doesn't treat it as covered by that external entry, so
+            // it was bundling react-dom/client's own full reconciler +
+            // scheduler into app.js. That gives the page two separate
+            // ReactDOM renderer instances at runtime (this bundle's own
+            // createRoot vs. the WP-provided global used by createPortal),
+            // corrupting React's shared internal dispatcher state as soon
+            // as anything portals (Tooltip) into a tree rooted by the
+            // other instance.
+            external: ['react', 'react-dom', 'react-dom/client'],
             output: {
                 globals: {
                     react: 'React',
                     'react-dom': 'ReactDOM',
+                    'react-dom/client': 'ReactDOM',
                 },
                 inlineDynamicImports: true,
             },
