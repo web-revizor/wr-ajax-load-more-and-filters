@@ -97,6 +97,11 @@ jobs:
                     --exclude='docs' \
                     --exclude='.worktrees' \
                     --exclude='.superpowers' \
+                    --exclude='build.ps1' \
+                    --exclude='.claude' \
+                    --exclude='.idea' \
+                    --exclude='.env' \
+                    --exclude='.env.*' \
                     ./ plugin-build/${{ steps.repo_name.outputs.name }}/
 
       - name: Create plugin archive
