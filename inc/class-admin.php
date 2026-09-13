@@ -61,10 +61,7 @@ class WRALM_Admin
 
         wp_enqueue_style('wralm-admin', WRALM_URL . 'dist/style.css', [], WRALM_VERSION);
 
-        // React/ReactDOM are externalized in the Vite build (see
-        // frontend/vite.config.ts), so they must be enqueued as separate
-        // script dependencies before dist/app.js loads.
-        wp_enqueue_script('wralm-admin', WRALM_URL . 'dist/app.js', ['react', 'react-dom'], WRALM_VERSION, true);
+        wp_enqueue_script('wralm-admin', WRALM_URL . 'dist/app.js', [], WRALM_VERSION, true);
     }
 
     public function render_page()

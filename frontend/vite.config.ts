@@ -37,23 +37,20 @@ export default defineConfig({
             cssFileName: 'style',
         },
         rollupOptions: {
-            // `react-dom/client` (used by src/index.tsx's createRoot) is a
-            // different module specifier from the bare `react-dom` below —
-            // Rollup doesn't treat it as covered by that external entry, so
-            // it was bundling react-dom/client's own full reconciler +
-            // scheduler into app.js. That gives the page two separate
-            // ReactDOM renderer instances at runtime (this bundle's own
-            // createRoot vs. the WP-provided global used by createPortal),
-            // corrupting React's shared internal dispatcher state as soon
-            // as anything portals (Tooltip) into a tree rooted by the
-            // other instance.
-            external: ['react', 'react-dom', 'react-dom/client'],
+            // react/react-dom are bundled in full, NOT externalized.
+            // WordPress's own bundled React version is outside our control
+            // (observed: 18.3.1, vs. this project's own react@19.2.8) —
+            // externalizing to WP's global React/ReactDOM makes element
+            // creation (this bundle's jsx-runtime, built against React 19's
+            // element marker) and rendering (WP's global reconciler, React
+            // 18) use two different, incompatible element-tag symbols,
+            // which crashes immediately with React error #31 the moment
+            // anything renders. Bundling our own consistent React 19 copy
+            // end-to-end avoids this entirely, at the cost of a second
+            // React runtime on the page alongside WP's own — acceptable
+            // since this widget never portals into WP's own React tree,
+            // only into plain DOM (document.body).
             output: {
-                globals: {
-                    react: 'React',
-                    'react-dom': 'ReactDOM',
-                    'react-dom/client': 'ReactDOM',
-                },
                 inlineDynamicImports: true,
             },
         },
