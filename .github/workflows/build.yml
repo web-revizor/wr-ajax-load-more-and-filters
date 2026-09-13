@@ -16,6 +16,11 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Job-level, not just on the install step: setup-node's yarn cache step
+    # runs `yarn cache dir` in frontend/, whose .npmrc references
+    # ${NODE_AUTH_TOKEN} — yarn fails outright if the variable is unset.
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Checkout code
