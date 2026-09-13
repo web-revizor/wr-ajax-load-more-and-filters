@@ -12,7 +12,11 @@ import sharedPreset from '@web-revizor/ui-kit/tailwind-preset';
 const config: Config = {
   presets: [sharedPreset],
   important: '.web-revizor-container',
-  content: ['./*.php', './src/**/*.{js,ts,jsx,tsx}'],
+  content: [
+    './*.php',
+    './src/**/*.{js,ts,jsx,tsx}',
+    './node_modules/@web-revizor/ui-kit/components/**/*.{js,ts,jsx,tsx}',
+  ],
   theme: {
     extend: {
       borderRadius: {
