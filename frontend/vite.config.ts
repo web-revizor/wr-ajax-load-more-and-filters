@@ -1,14 +1,13 @@
 import {defineConfig} from 'vite';
 import react from '@vitejs/plugin-react';
 import * as path from 'node:path';
-import {svgSpritePlugin} from './vite-svg-sprite-plugin.js';
+import {svgSpritePlugin} from '@web-revizor/ui-kit/build-tools/vite-svg-sprite-plugin';
 
 const isWatch = process.argv.includes('--watch') || process.argv.includes('-w');
 export default defineConfig({
     plugins: [
         react(),
         svgSpritePlugin({
-            iconsDir: 'src/icons',
             outputDir: '../template-parts',
             outputName: 'sprite.php',
         }),
