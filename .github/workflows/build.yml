@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: write
+  packages: read
 
 jobs:
   build:
@@ -38,6 +39,8 @@ jobs:
       - name: Install admin console dependencies
         run: yarn install --frozen-lockfile
         working-directory: frontend
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build admin console
         run: yarn build
