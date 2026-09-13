@@ -1,4 +1,5 @@
 import { showToast } from '@/src/utils/toastEmitter';
+import { copyToClipboard } from '@web-revizor/ui-kit/utils/copyToClipboard';
 
 type CopyTarget = (MouseEvent & { currentTarget: HTMLElement }) | string;
 export function copyText(target?: CopyTarget, testToCopy?: string) {
@@ -18,31 +19,13 @@ export function copyText(target?: CopyTarget, testToCopy?: string) {
 
   if (!text) return;
 
-  const fallbackCopy = () => {
-    const textarea = document.createElement('textarea');
-    textarea.value = text!;
-    textarea.style.position = 'fixed';
-    document.body.appendChild(textarea);
-    textarea.focus();
-    textarea.select();
-    try {
-      document.execCommand('copy');
+  copyToClipboard(text).then((result) => {
+    if (result === 'copied') {
+      showToast({ message: 'Copied!', type: 'success' });
+    } else if (result === 'fallback') {
       showToast({ message: 'Copied via fallback!', type: 'success' });
-    } catch {
+    } else {
       showToast({ message: 'Copy fallback failed!', type: 'error' });
-    } finally {
-      document.body.removeChild(textarea);
     }
-  };
-
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard
-      .writeText(text)
-      .then(
-        () => showToast({ message: 'Copied!', type: 'success' }),
-        fallbackCopy
-      );
-  } else {
-    fallbackCopy();
-  }
+  });
 }

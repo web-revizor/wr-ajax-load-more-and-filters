@@ -964,9 +964,9 @@
     "@types/babel__core" "^7.20.5"
     react-refresh "^0.17.0"
 
-"@web-revizor/ui-kit@github:web-revizor/ui-kit#v0.4.6":
+"@web-revizor/ui-kit@github:web-revizor/ui-kit#v0.4.7":
   version "0.1.0"
-  resolved "git+ssh://git@github.com/web-revizor/ui-kit.git#c1a7fe220bea429b01cb4fce49b9594c91fa213e"
+  resolved "git+ssh://git@github.com/web-revizor/ui-kit.git#7d2296dc079e2971aba099ea11117ab42807fe22"
   dependencies:
     markdown-to-jsx "9.10.2"
 
