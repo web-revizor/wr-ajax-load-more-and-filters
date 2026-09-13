@@ -1,65 +1,8 @@
+@use '@web-revizor/ui-kit/styles/shared.scss' as shared;
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@layer utilities {
-  .glass-card {
-    @apply glass transition-all transform-gpu duration-300 ease-glass-card;
-    &:hover {
-      @apply shadow-glass-card !border-primary-container;
-    }
-  }
-
-  .glass {
-    @apply border border-solid border-on-surface/10 backdrop-blur-md bg-white/[0.03];
-  }
-
-  .magenta-glow {
-    @apply shadow-magenta-glow transition-all transform-gpu duration-300 ease-glass-card;
-    &:hover {
-      @apply shadow-magenta-glow-hover;
-    }
-  }
-
-  .globalTransition {
-    @apply transition duration-300 ease-global;
-  }
-
-  .visibleTransition {
-    @apply transition-[opacity,transform] duration-300 ease-global will-change-[transform,opacity];
-  }
-
-  .chatTransition {
-    @apply origin-[calc(100%-20px)calc(100%+20px)] transition-[width,height,transform,opacity] duration-500 ease-bounce will-change-[width,height,transform,opacity];
-  }
-
-  .customChatStyles {
-    @apply [&_a]:break-words [&_a]:whitespace-pre-line [&_*:first-child]:!mt-0 [&_*:first-child]:mb-1 [&_ul]:list-disc [&>div]:!space-y-2 [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5  [&_p~ul]:!mt-2 [&_p~ol]:!mt-1;
-  }
-
-  .text-balance {
-    text-wrap: balance;
-  }
-
-  .customRadio {
-    @apply flex-shrink-0 flex-grow-0 mr-2 -mb-0.5 rounded-full cursor-pointer appearance-none w-4 h-4 inline-block border !border-solid border-grayBorder checked:border-black relative globalTransition before:globalTransition before:absolute before:inset-1 before:rounded-full checked:before:bg-black;
-  }
-
-  .icon {
-    @apply flex-grow-0 flex-shrink-0 max-w-full h-auto fill-current text-inherit box-content select-none;
-    &.colored {
-      @apply coloredText;
-    }
-  }
-
-  .coloredText {
-    @apply text-secondary globalTransition hover:text-primary-container;
-  }
-
-  .customCheckbox {
-    @apply flex-shrink-0 flex-grow-0 mr-2 -mb-0.5 !shadow-none focus:!shadow-none !bg-transparent cursor-pointer appearance-none !p-3 inline-block border border-solid border-outline-variant/30  rounded-lg focus:ring-primary focus:border-primary hover:border-primary checked:border-primary-container relative globalTransition before:globalTransition before:content-[''] before:absolute before:inset-1 checked:before:bg-primary-container;
-  }
-}
 
 @layer base {
   .web-revizor-container {
@@ -87,69 +30,6 @@
       }
     }
   }
-
-  .customScroll {
-    &::-webkit-scrollbar {
-      width: 2px;
-      height: 2px;
-      @apply bg-background;
-    }
-
-    &.customTransparent {
-      &::-webkit-scrollbar {
-        @apply bg-transparent;
-      }
-    }
-
-    &::-webkit-scrollbar-thumb {
-      width: 2px;
-      height: 2px;
-      border-radius: 1px;
-      @apply bg-primary;
-    }
-
-    &:hover {
-      &::-webkit-scrollbar-thumb {
-        @apply bg-primary;
-      }
-    }
-
-    &::-webkit-scrollbar-track {
-      background-color: transparent;
-    }
-
-    &::-webkit-scrollbar-corner {
-      display: none;
-    }
-  }
-
-  .transparentScroll {
-    &::-webkit-scrollbar {
-      width: 0;
-      height: 0;
-      @apply bg-transparent;
-    }
-
-    &::-webkit-scrollbar-thumb {
-      width: 0;
-      height: 0;
-      @apply bg-transparent;
-    }
-
-    &:hover {
-      &::-webkit-scrollbar-thumb {
-        @apply bg-transparent;
-      }
-    }
-
-    &::-webkit-scrollbar-track {
-      @apply bg-transparent;
-    }
-
-    &::-webkit-scrollbar-corner {
-      display: none;
-    }
-  }
 }
 
 
@@ -165,11 +45,6 @@
 
 body {
   &:has(#wralm-console) {
-    @apply bg-background text-on-surface;
-    h1,
-    h2,
-    h3 {
-      @apply text-on-surface;
-    }
+    @include shared.mount-shell;
   }
 }
