@@ -964,9 +964,9 @@
     "@types/babel__core" "^7.20.5"
     react-refresh "^0.17.0"
 
-"@web-revizor/ui-kit@github:web-revizor/ui-kit#v0.2.1":
+"@web-revizor/ui-kit@github:web-revizor/ui-kit#v0.2.2":
   version "0.1.0"
-  resolved "git+ssh://git@github.com/web-revizor/ui-kit.git#a4dbb7f5f6397cfd6b3a9a8433604fc9b67fce1d"
+  resolved "git+ssh://git@github.com/web-revizor/ui-kit.git#36ef53827161e723b112039f4ec24a058b47fd99"
 
 acorn-jsx@^5.3.2:
   version "5.3.2"
