@@ -102,7 +102,7 @@ class WRALM_Hide_Meta_Box
                     <input type="checkbox" id="all_posts_ajax_hide" class="peer sr-only"
                            name="all_posts_ajax_hide" <?php checked((bool) $value); ?>/>
                     <span class="globalTransition block h-[26px] w-[46px] rounded-full border border-solid border-outline-variant/30 bg-surface-container peer-checked:bg-primary-container peer-hover:border-primary peer-focus-visible:border-primary peer-focus-visible:ring-1 peer-focus-visible:ring-primary"></span>
-                    <span class="globalTransition magenta-glow pointer-events-none absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-on-surface peer-checked:translate-x-5"></span>
+                    <span class="globalTransition magenta-glow pointer-events-none absolute left-[3px] top-[3px] h-5 w-5 rounded-full bg-on-surface peer-checked:translate-x-5"></span>
                 </span>
             </label>
         </div>
