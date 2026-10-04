@@ -964,10 +964,10 @@
     "@types/babel__core" "^7.20.5"
     react-refresh "^0.17.0"
 
-"@web-revizor/ui-kit@^0.8.0":
-  version "0.8.0"
-  resolved "https://npm.pkg.github.com/download/@web-revizor/ui-kit/0.8.0/338d0ad658939f528d362f3881e41230cd0fbf4d#338d0ad658939f528d362f3881e41230cd0fbf4d"
-  integrity sha512-HS/ryIRB5iZR+3feI642KldWpyQ4DSv6VAeyFnsEf4AqR8e/D9JvW7bF4LDyV9r2W+QMDd7WkvpFj8AC1eQSBQ==
+"@web-revizor/ui-kit@^0.9.3":
+  version "0.9.3"
+  resolved "https://npm.pkg.github.com/download/@web-revizor/ui-kit/0.9.3/53cb8253449c1a1ffe5740eb05af713f828ea87e#53cb8253449c1a1ffe5740eb05af713f828ea87e"
+  integrity sha512-BK5AW4VZDUW4OtYWxA0A8FofUYjL+H7HhJQ7f1jGwsTS2whF2YGu6ZcykveiLM+6Mvtv6HGMSuhBmjSo6m0JOQ==
   dependencies:
     markdown-to-jsx "9.10.2"
 

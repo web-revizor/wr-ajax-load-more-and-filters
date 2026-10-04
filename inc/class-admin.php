@@ -55,7 +55,8 @@ class WRALM_Admin
 
     public function enqueue_assets($hook_suffix)
     {
-        if ($hook_suffix !== self::PAGE_HOOK) {
+        // The console page and the Search settings page (SettingsForm) share the bundle.
+        if (!in_array($hook_suffix, [self::PAGE_HOOK, 'wr-ajax-load-more_page_' . WRALM_Search_Settings::PAGE_SLUG], true)) {
             return;
         }
 

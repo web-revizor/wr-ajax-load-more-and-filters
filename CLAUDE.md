@@ -27,7 +27,9 @@ WordPress-плагін «Web Revizor: Ajax Load More & Filters». Дає шор�
 - `template-parts/sprite.php` — інлайновий SVG-спрайт, підключається у `WRALM_Admin::render_page()`;
 - `frontend/src/components/sharedComponents/Icon/sprite-info.ts` — union-тип і масив id іконок.
 
-`dist/*` і ці два файли **закомічені** — плагін вантажить саме їх. Після будь-якої зміни в `src/js/`, `frontend/src/` чи `frontend/src/icons/` перезбирай і комітай оновлені артефакти.
+Та сама збірка через `vite-php-modules-plugin.js` пише `inc/ui-kit/SettingsPage.php` (PHP-модуль з `@web-revizor/ui-kit`, namespace `WRALM\UiKit`). На ньому сторінка Search (`WRALM_Search_Settings`): форма Settings API, поля рендерить ui-kit `SettingsForm` (монтується в `frontend/src/index.tsx` на `[data-wr-settings]`), збереження — через `options.php`. `WRALM_Admin::enqueue_assets()` підключає бандл і на цій сторінці.
+
+`dist/*`, ці два файли та `inc/ui-kit/` **закомічені** — плагін вантажить саме їх. Після будь-якої зміни в `src/js/`, `frontend/src/`, `frontend/src/icons/` чи оновлення ui-kit перезбирай і комітай оновлені артефакти.
 
 ### Обидва React зовнішні
 

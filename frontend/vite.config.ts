@@ -2,6 +2,7 @@ import {defineConfig} from 'vite';
 import react from '@vitejs/plugin-react';
 import * as path from 'node:path';
 import {svgSpritePlugin} from '@web-revizor/ui-kit/build-tools/vite-svg-sprite-plugin';
+import {phpModulesPlugin} from '@web-revizor/ui-kit/build-tools/vite-php-modules-plugin';
 
 const isWatch = process.argv.includes('--watch') || process.argv.includes('-w');
 export default defineConfig({
@@ -10,6 +11,10 @@ export default defineConfig({
         svgSpritePlugin({
             outputDir: '../template-parts',
             outputName: 'sprite.php',
+        }),
+        phpModulesPlugin({
+            namespace: 'WRALM\\UiKit',
+            outputDir: '../inc/ui-kit',
         }),
     ],
     define: {
