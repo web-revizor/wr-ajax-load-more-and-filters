@@ -125,6 +125,10 @@ Vite + React 18 + TypeScript. Призначення — **тільки кліє
 3. Додай контрол у відповідну вкладку в `frontend/src/components/Tabs/`.
 4. Додай атрибут у `shortcode_defaults()` відповідного DTO (`WRALM_Query_Config` для `[all_posts_ajax]`, `WRALM_Filter_Config` для `[all_posts_ajax_filters]`), спарси його у `from_atts()` (для `WRALM_Query_Config` ще `from_request()` + `data_attrs()`) і проведи до JS / в'юхи (в'юхи читають `$config` напряму).
 
+## Перевірка
+
+Інтеграційні та браузерні перевірки — лише на локальному сайті `web-revizor-wp` (`https://web-revizor-wp.test`, `F:/OpenServer-old/domains/web-revizor-wp`); zip збірки ставити через `$WP_TOOLS_DIR/builds/install-build.sh`.
+
 ## Каталоги з локальною документацією
 
 `frontend/AGENTS.md`, `frontend/src/components/sharedComponents/Button/AGENTS.md`, `.../SlideDown/AGENTS.md` — читай їх перед роботою у відповідних місцях.
