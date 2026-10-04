@@ -3,8 +3,8 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-/** @var WRALM_Filter_Config $config — passed in scope by WRALM_Shortcode::render_filters(). */
-if ( ! ( isset( $config ) && $config instanceof WRALM_Filter_Config ) ) {
+/** @var mixed $config WRALM_Filter_Config passed in scope by WRALM_Shortcode::render_filters(). */
+if ( ! isset( $config ) || ! $config instanceof WRALM_Filter_Config ) {
     return;
 }
 
@@ -112,7 +112,7 @@ if ( ! function_exists( 'wralm_render_filter_options' ) ) {
             printf(
                 '<option value="%s">%s%s</option>',
                 esc_attr( $term->slug ),
-                $indent,
+                $indent, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- literal &nbsp; repeats.
                 esc_html( $term->name )
             );
 

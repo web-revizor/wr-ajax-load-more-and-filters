@@ -57,7 +57,8 @@ class WRALM_Pagination
 
     private static function href($link, $sync_pagination_url)
     {
-        return $sync_pagination_url ? esc_url(apply_filters('paginate_links', $link)) : '#';
+        // Core's own paginate_links filter, applied the same way paginate_links() does.
+        return $sync_pagination_url ? esc_url(apply_filters('paginate_links', $link)) : '#'; // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
     }
 
     /**
@@ -71,7 +72,7 @@ class WRALM_Pagination
     {
         $page = max(1, (int) $page);
         $link = str_replace('%_%', 1 === $page ? '' : $format, $base);
-        $link = str_replace('%#%', $page, $link);
+        $link = str_replace('%#%', (string) $page, $link);
         if (!empty($add_args)) {
             // add_query_arg() does NOT urlencode values, so a multi-term value
             // would land as filter_product_cat=a,b. Encode first (comma -> %2C);
@@ -202,7 +203,7 @@ class WRALM_Pagination
                         $args['before_page_number'] . number_format_i18n($n) . $args['after_page_number']
                     );
                     $dots = true;
-                elseif ($dots && !$args['show_all']) :
+                elseif ($dots) :
                     $page_links[] = '<span class="page-numbers dots wr-posts__page wr-posts__page--dots">' . __('&hellip;', 'wr-ajax-load-more-and-filters') . '</span>';
                     $dots = false;
                 endif;
@@ -250,6 +251,6 @@ class WRALM_Pagination
                 break;
         }
 
-        return apply_filters('paginate_links_output', $r, $args);
+        return apply_filters('paginate_links_output', $r, $args); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core hook, mirrors paginate_links().
     }
 }

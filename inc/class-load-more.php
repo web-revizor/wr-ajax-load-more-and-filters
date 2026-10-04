@@ -61,7 +61,7 @@ class WRALM_Load_More
      */
     public function rest_permission()
     {
-        $ip  = isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : '';
+        $ip  = isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'])) : '';
         $max = (int) apply_filters('wralm_rate_limit', 60);
         if ($max < 1 || '' === $ip) {
             return true;

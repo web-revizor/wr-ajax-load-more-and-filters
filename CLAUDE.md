@@ -21,6 +21,8 @@ WordPress-плагін «Web Revizor: Ajax Load More & Filters». Дає шор�
 
 Тестів немає. Lint: `cd frontend && yarn lint` (flat config `frontend/eslint.config.js`, ESLint 9).
 
+PHP: `composer install`, потім `composer lint` (PHPCS: `phpcs.xml.dist` — безпека, БД, i18n, префікси `wralm`/`WRALM`, сумісність з PHP 7.4) і `composer analyse` (PHPStan рівня 5, `phpstan.neon.dist`; константи плагіна — `tools/phpstan-bootstrap.php`). Обидва запускаються в CI перед пакуванням; `vendor/`, `tools/`, composer- і конфіг-файли в zip не йдуть.
+
 ### Згенеровані файли, які треба комітити
 
 Збірка `frontend/` через `vite-svg-sprite-plugin.js` збирає всі `frontend/src/icons/*.svg` у:

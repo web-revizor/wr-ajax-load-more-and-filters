@@ -170,7 +170,7 @@ class WRALM_Query_Config {
      */
     public static function split_sort_value( $raw ) {
         $parts   = explode( ':', (string) $raw, 2 );
-        $orderby = self::sanitize_orderby( isset( $parts[0] ) ? $parts[0] : '' );
+        $orderby = self::sanitize_orderby( $parts[0] );
         $order   = ( isset( $parts[1] ) && 'asc' === strtolower( trim( $parts[1] ) ) ) ? 'ASC' : 'DESC';
         return array( $orderby, $order );
     }

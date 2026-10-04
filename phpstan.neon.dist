@@ -1,0 +1,11 @@
+includes:
+    - vendor/szepeviktor/phpstan-wordpress/extension.neon
+
+parameters:
+    level: 5
+    bootstrapFiles:
+        - tools/phpstan-bootstrap.php
+    paths:
+        - wr-ajax-load-more-and-filters.php
+        - uninstall.php
+        - inc

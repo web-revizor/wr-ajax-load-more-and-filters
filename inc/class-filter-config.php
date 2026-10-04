@@ -117,7 +117,7 @@ class WRALM_Filter_Config {
         $out = array();
         foreach ( array_filter( array_map( 'trim', explode( '|', (string) $raw ) ) ) as $record ) {
             $bits    = explode( ':', $record, 3 );
-            $orderby = WRALM_Query_Config::sanitize_orderby( isset( $bits[0] ) ? trim( $bits[0] ) : '' );
+            $orderby = WRALM_Query_Config::sanitize_orderby( trim( $bits[0] ) );
             $order   = ( isset( $bits[1] ) && 'asc' === strtolower( trim( $bits[1] ) ) ) ? 'asc' : 'desc';
             $label   = isset( $bits[2] ) ? sanitize_text_field( $bits[2] ) : '';
             if ( '' === $label ) {
@@ -255,6 +255,8 @@ class WRALM_Filter_Config {
             }
         }
 
+        // $woo_where holds only table names and absint() ids.
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery
         $sql = $wpdb->prepare(
             "SELECT tt.term_id AS term_id, COUNT(DISTINCT p.ID) AS c
              FROM {$wpdb->term_taxonomy} tt
@@ -279,6 +281,7 @@ class WRALM_Filter_Config {
         foreach ( (array) $wpdb->get_results( $sql ) as $row ) {
             $direct[ (int) $row->term_id ] = (int) $row->c;
         }
+        // phpcs:enable
 
         $terms = get_terms( array( 'taxonomy' => $taxonomy, 'hide_empty' => false ) );
         if ( ! is_array( $terms ) ) {

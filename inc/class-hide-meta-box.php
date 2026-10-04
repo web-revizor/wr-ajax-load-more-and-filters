@@ -110,7 +110,7 @@ class WRALM_Hide_Meta_Box
             return;
         }
 
-        if (!wp_verify_nonce($_POST[self::NONCE_NAME], self::NONCE_ACTION)) {
+        if (!wp_verify_nonce(sanitize_text_field(wp_unslash($_POST[self::NONCE_NAME])), self::NONCE_ACTION)) {
             return;
         }
 

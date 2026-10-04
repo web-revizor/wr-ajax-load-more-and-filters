@@ -1,0 +1,22 @@
+{
+    "name": "web-revizor/wr-ajax-load-more-and-filters",
+    "description": "Dev tooling for the WR Ajax Load More and Filters WordPress plugin (not shipped in the plugin zip).",
+    "type": "project",
+    "license": "proprietary",
+    "require-dev": {
+        "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+        "phpcompatibility/phpcompatibility-wp": "^2.1",
+        "phpstan/phpstan": "^2.1",
+        "szepeviktor/phpstan-wordpress": "^2.0",
+        "wp-coding-standards/wpcs": "^3.1"
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    },
+    "scripts": {
+        "lint": "phpcs",
+        "analyse": "phpstan analyse --memory-limit=1G"
+    }
+}

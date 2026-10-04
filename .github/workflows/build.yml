@@ -58,6 +58,23 @@ jobs:
       - name: Build public script
         run: yarn build
 
+      # --- PHP checks (dev tooling from composer.json, not shipped) ---
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+          coverage: none
+
+      - name: Install PHP tooling
+        run: composer install --no-interaction --no-progress
+
+      - name: PHPCS
+        run: composer lint
+
+      - name: PHPStan
+        run: composer analyse
+
       - name: Get repository name
         id: repo_name
         run: echo "name=${GITHUB_REPOSITORY#*/}" >> $GITHUB_OUTPUT
@@ -102,6 +119,12 @@ jobs:
                     --exclude='.idea' \
                     --exclude='.env' \
                     --exclude='.env.*' \
+                    --exclude='vendor' \
+                    --exclude='tools' \
+                    --exclude='composer.json' \
+                    --exclude='composer.lock' \
+                    --exclude='phpcs.xml.dist' \
+                    --exclude='phpstan.neon.dist' \
                     ./ plugin-build/${{ steps.repo_name.outputs.name }}/
 
       - name: Create plugin archive

@@ -114,7 +114,8 @@ class WRALM_Search_ACF
                 }
             }
 
-            $new_where .= $wpdb->prepare(" AND ({$base_sql})", $params);
+            // $base_sql is built only from table names and %s placeholders above.
+            $new_where .= $wpdb->prepare(" AND ({$base_sql})", $params); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
         }
 
         return $new_where;

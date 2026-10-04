@@ -54,7 +54,7 @@ class WRALM_Woo {
 		if ( $default < 1 ) {
 			$default = 16;
 		}
-		$per_page = (int) apply_filters( 'loop_shop_per_page', $default );
+		$per_page = (int) apply_filters( 'loop_shop_per_page', $default ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- WooCommerce's own filter.
 		return $per_page > 0 ? $per_page : $default;
 	}
 

@@ -3,8 +3,8 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-/** @var WRALM_Filter_Config $config — passed in scope by WRALM_Shortcode::render_filters(). */
-if ( ! ( isset( $config ) && $config instanceof WRALM_Filter_Config ) ) {
+/** @var mixed $config WRALM_Filter_Config passed in scope by WRALM_Shortcode::render_filters(). */
+if ( ! isset( $config ) || ! $config instanceof WRALM_Filter_Config ) {
     return;
 }
 
