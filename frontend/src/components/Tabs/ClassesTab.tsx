@@ -1,6 +1,6 @@
 import type {Dispatch, SetStateAction} from 'react';
 import {ClassSettings} from "@/src/types";
-import Input from "@/src/components/sharedComponents/Input/Input";
+import { Input } from "@web-revizor/ui-kit/components/Input";
 
 interface Props {
     classes: ClassSettings;

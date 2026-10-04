@@ -1,10 +1,10 @@
 import type {Dispatch, SetStateAction} from 'react';
 import type {OrderSettings, SortDirection} from '@/src/types';
-import Toggle from '@/src/components/sharedComponents/Toggle/Toggle';
-import SlideDown from '@/src/components/sharedComponents/SlideDown/SlideDown';
-import Input from '@/src/components/sharedComponents/Input/Input';
-import Select from '@/src/components/sharedComponents/Select/Select';
-import Button from '@/src/components/sharedComponents/Button/Button';
+import { Toggle } from '@web-revizor/ui-kit/components/Toggle';
+import { SlideDown } from '@web-revizor/ui-kit/components/SlideDown';
+import { Input } from '@web-revizor/ui-kit/components/Input';
+import { Select } from '@web-revizor/ui-kit/components/Select';
+import { Button } from '@web-revizor/ui-kit/components/Button';
 import {SEED_SORT_ROWS} from '@/src/hooks/useShortcodeBuilder';
 
 interface Props {

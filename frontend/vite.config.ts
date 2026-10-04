@@ -35,7 +35,9 @@ export default defineConfig({
             },
         lib: {
             entry: './src/index',
-            name: 'WebRevizorAiAgent',
+            // Unique per plugin: the IIFE global must not collide with other
+            // web-revizor bundles loaded on the same admin page.
+            name: 'WRALMAdmin',
             formats: ['iife'],
             fileName: () => 'app.js',
             cssFileName: 'style',

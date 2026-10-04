@@ -138,7 +138,7 @@ export function useShortcodeBuilder() {
         sc += attr('filter_id', filterId);
         sc += ']';
         return sc;
-    }, [filters, search, sortRows, hasFilters, filterId]);
+    }, [filters, search, sortRows, hasFilters, filterId, main.postType]);
 
     return {
         state,

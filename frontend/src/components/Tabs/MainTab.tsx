@@ -1,8 +1,8 @@
 import type { Dispatch, SetStateAction } from 'react';
 import type { MainSettings, PaginationType } from '@/src/types';
-import Input from '@/src/components/sharedComponents/Input/Input';
-import Select from '@/src/components/sharedComponents/Select/Select';
-import Toggle from '@/src/components/sharedComponents/Toggle/Toggle';
+import { Input } from '@web-revizor/ui-kit/components/Input';
+import { Select } from '@web-revizor/ui-kit/components/Select';
+import { Toggle } from '@web-revizor/ui-kit/components/Toggle';
 
 interface Props {
   postTypes: string[];

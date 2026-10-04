@@ -18,6 +18,7 @@ class WRALM_Hide_Meta_Box
     public function __construct()
     {
         add_action('add_meta_boxes', [$this, 'add_meta_box']);
+        add_action('admin_enqueue_scripts', [$this, 'enqueue_style']);
         add_action('save_post', [$this, 'save_meta_box']);
         add_action('init', [$this, 'maybe_cleanup_legacy_meta']);
     }
@@ -45,17 +46,40 @@ class WRALM_Hide_Meta_Box
         update_option(self::CLEANUP_FLAG, 1);
     }
 
-    public function add_meta_box()
+    /**
+     * Post types that get the meta box: public custom types plus posts.
+     *
+     * @return string[]
+     */
+    private function screens()
     {
-        $args = array(
-            'public' => true,
-            '_builtin' => false,
-        );
-        $screens = get_post_types($args, 'names', 'and');
+        $screens = array_values(get_post_types(['public' => true, '_builtin' => false], 'names', 'and'));
         $screens[] = 'post';
 
+        return $screens;
+    }
+
+    /**
+     * The admin stylesheet gives the meta box the plugin's dark look (it only
+     * styles .web-revizor-container, form controls are not reset globally).
+     */
+    public function enqueue_style($hook_suffix)
+    {
+        $screen = get_current_screen();
+
+        if (!in_array($hook_suffix, ['post.php', 'post-new.php'], true) || !$screen || !in_array($screen->post_type, $this->screens(), true)) {
+            return;
+        }
+
+        wp_enqueue_style('wralm-admin', WRALM_URL . 'dist/style.css', [], WRALM_VERSION);
+    }
+
+    public function add_meta_box()
+    {
+        $screens = $this->screens();
+
         add_meta_box(
-            'myplugin_sectionid',
+            'wralm_hide_from_list',
             __('All Posts Ajax', 'wr-ajax-load-more-and-filters'),
             [$this, 'render_meta_box'],
             $screens,
@@ -70,11 +94,13 @@ class WRALM_Hide_Meta_Box
 
         $value = get_post_meta($post->ID, self::META_KEY, true);
         ?>
-        <label for="all_posts_ajax_hide">
-            <input type="checkbox" id="all_posts_ajax_hide"
-                   name="all_posts_ajax_hide" <?= $value ? 'checked' : '' ?>/>
-            <?php esc_html_e('Hide from list', 'wr-ajax-load-more-and-filters'); ?>
-        </label>
+        <div class="web-revizor-container">
+            <label for="all_posts_ajax_hide" class="flex cursor-pointer items-center gap-2 text-sm text-on-surface">
+                <input type="checkbox" id="all_posts_ajax_hide" class="!m-0 h-4 w-4 cursor-pointer accent-primary-container"
+                       name="all_posts_ajax_hide" <?php checked((bool) $value); ?>/>
+                <?php esc_html_e('Hide from list', 'wr-ajax-load-more-and-filters'); ?>
+            </label>
+        </div>
         <?php
     }
 

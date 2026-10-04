@@ -1,8 +1,8 @@
 import type { Dispatch, SetStateAction } from 'react';
 import type { SearchSettings } from '@/src/types';
-import Toggle from '@/src/components/sharedComponents/Toggle/Toggle';
-import SlideDown from '@/src/components/sharedComponents/SlideDown/SlideDown';
-import Input from '@/src/components/sharedComponents/Input/Input';
+import { Toggle } from '@web-revizor/ui-kit/components/Toggle';
+import { SlideDown } from '@web-revizor/ui-kit/components/SlideDown';
+import { Input } from '@web-revizor/ui-kit/components/Input';
 
 interface Props {
   search: SearchSettings;

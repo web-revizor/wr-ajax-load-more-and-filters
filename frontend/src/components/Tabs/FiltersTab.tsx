@@ -1,10 +1,10 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { FilterSettings, FilterType } from '@/src/types';
 
-import Toggle from '@/src/components/sharedComponents/Toggle/Toggle';
-import Select from '@/src/components/sharedComponents/Select/Select';
-import Input from '@/src/components/sharedComponents/Input/Input';
-import SlideDown from '@/src/components/sharedComponents/SlideDown/SlideDown';
+import { Toggle } from '@web-revizor/ui-kit/components/Toggle';
+import { Select } from '@web-revizor/ui-kit/components/Select';
+import { Input } from '@web-revizor/ui-kit/components/Input';
+import { SlideDown } from '@web-revizor/ui-kit/components/SlideDown';
 
 interface Props {
   taxonomies: string[];

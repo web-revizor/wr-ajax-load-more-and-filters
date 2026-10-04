@@ -1,5 +1,5 @@
-import Input from '@/src/components/sharedComponents/Input/Input';
-import Button from '@/src/components/sharedComponents/Button/Button';
+import { Input } from '@web-revizor/ui-kit/components/Input';
+import { Button } from '@web-revizor/ui-kit/components/Button';
 import { Icon } from '@/src/components/sharedComponents/Icon';
 import { copyText } from '@/src/utils';
 

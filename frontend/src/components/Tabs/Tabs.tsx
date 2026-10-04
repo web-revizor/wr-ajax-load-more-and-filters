@@ -1,5 +1,5 @@
 import type {TabId} from '@/src/types';
-import Button from "@/src/components/sharedComponents/Button/Button";
+import { Button } from "@web-revizor/ui-kit/components/Button";
 
 interface TabDef {
     id: TabId;

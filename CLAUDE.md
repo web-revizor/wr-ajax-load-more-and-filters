@@ -109,12 +109,13 @@ CI (`.github/workflows/build.yml`) на push у `main` читає `Version:` з 
 Vite + React 18 + TypeScript. Призначення — **тільки клієнтський конструктор рядка шорткоду**, жодних запитів на бекенд (тому в `frontend/` немає і не має з'являтися каталогу `client/`, поки консоль не почне ходити в `admin-ajax.php`). Читає лише `window.wralmSettings`.
 
 - Стан форми — цілком у `frontend/src/hooks/useShortcodeBuilder.ts`; компоненти презентаційні, отримують стан і сетери пропсами. Там же логіка складання обох рядків шорткоду (helper `attr()` пропускає порожні значення).
-- Вкладки в `frontend/src/components/Tabs/` (`main` / `classes` / `filters` / `search` / `order`), спільні інпути — в `sharedComponents/`.
+- Вкладки в `frontend/src/components/Tabs/` (`main` / `classes` / `filters` / `search` / `order`), спільні компоненти імпортуються напряму з `@web-revizor/ui-kit/components/*`; у `sharedComponents/` лишились тільки `Icon` (типізований `SpriteKey`) і `ToastContainer` (іконка закриття).
 - Поля URL-sync (вкладка Main): `MainSettings.syncFiltersUrl` / `MainSettings.syncPaginationUrl` (обидва bool, default `true`) → `sync_filters_url="false"` / `sync_pagination_url="false"` на `[all_posts_ajax]` (емітяться лише коли вимкнено). 1.5.0-поле `updateUrl` / атрибут `update_url` прибрано і з консолі, і з PHP.
 - Вкладка Order: `OrderSettings = { enableOrder: bool; sortRows: {label, orderBy, direction}[] }`. `OrderTab` — тумблер + repeater (label input, «Sort by» select, direction select, remove; «Add option»). Перше вмикання сідить `SEED_SORT_ROWS` (Newest/Oldest/Title A–Z/Title Z–A — англ. рядки, юзер редагує). `useShortcodeBuilder` кодує в `sort_options="orderby:order:label|..."` (`|` у label → `/`). `hasFilters` враховує `sortRows.length`. Для `post_type="product"` вкладка Main показує підказку про WooCommerce.
 - Аліас `@` → корінь `frontend/`, тому імпорти виглядають як `@/src/...`.
-- Стилі: `frontend/src/styles.scss` (директиви `@tailwind` + кастомні `@layer`-утиліти) + Tailwind (`tailwind.config.ts`, `postcss.config.js`, sass). `frontend/src/styles.css` — порожній невикористаний залишок.
-- Глобал IIFE-збірки — `WebRevizorAiAgent` (`vite.config.ts` `lib.name`), вхід `frontend/src/index.tsx`.
+- Стилі: `frontend/src/styles.scss` (директиви `@tailwind` + кастомні `@layer`-утиліти) + Tailwind (`tailwind.config.ts`, `postcss.config.js`, sass).
+- Глобал IIFE-збірки — `WRALMAdmin` (`vite.config.ts` `lib.name`; має бути унікальним, бо бандл ai-agent вантажиться на тих самих сторінках адмінки), вхід `frontend/src/index.tsx`.
+- `@tailwindcss/forms` зі `strategy: 'class'`: без глобальних скидань полів, тому `dist/style.css` можна підключати поруч із формами WP (метабокс у редакторі).
 
 ### Іконки
 
@@ -133,4 +134,4 @@ Vite + React 18 + TypeScript. Призначення — **тільки кліє
 
 ## Каталоги з локальною документацією
 
-`frontend/AGENTS.md`, `frontend/src/components/sharedComponents/Button/AGENTS.md`, `.../SlideDown/AGENTS.md` — читай їх перед роботою у відповідних місцях.
+`frontend/AGENTS.md` — читай його перед роботою у відповідних місцях.

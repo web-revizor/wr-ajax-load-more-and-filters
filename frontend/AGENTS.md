@@ -41,8 +41,10 @@ Web.Revizor.
   (`render_posts` / `render_filters`) and wire it through to the JS /
   view.
 - Shared inputs (`Input`, `Select`, `Toggle`, `Button`, `SlideDown`,
-  `Loader`, `Icon`, …) live in `src/components/sharedComponents/` — reuse
+  `Loader`, …) come straight from `@web-revizor/ui-kit/components/*` — reuse
   them instead of hand-rolling new `<input>` markup per tab.
+  `src/components/sharedComponents/` keeps only `Icon` (typed `SpriteKey`)
+  and `ToastContainer` (close icon).
 - New icon: drop `src/icons/<name>.svg`, rebuild — `vite-svg-sprite-plugin.js`
   regenerates `../template-parts/sprite.php` and
   `src/components/sharedComponents/Icon/sprite-info.ts`. Reference it as

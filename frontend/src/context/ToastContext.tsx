@@ -1,7 +1,6 @@
 import React, {
   createContext,
   useCallback,
-  useContext,
   useEffect,
   useRef,
   useState,
@@ -10,7 +9,7 @@ import ToastContainer from '@/src/components/sharedComponents/ToastContainer/Toa
 import {
   ToastProps,
   ToastType,
-} from '@/src/components/sharedComponents/Toast/Toast';
+} from '@web-revizor/ui-kit/components/Toast';
 import { onToast } from '@/src/utils/toastEmitter';
 
 type AddToastParams = [message: string, type?: ToastType, duration?: number];
@@ -53,12 +52,4 @@ export const ToastProvider = () => {
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </ToastContext.Provider>
   );
-};
-
-export const useToast = (): ToastContextType => {
-  const context = useContext(ToastContext);
-  if (!context) {
-    throw new Error('useToast must be used within a ToastProvider');
-  }
-  return context;
 };

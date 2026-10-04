@@ -14,6 +14,7 @@ const config: Config = {
   important: '.web-revizor-container',
   content: [
     './*.php',
+    './inc/**/*.php',
     './src/**/*.{js,ts,jsx,tsx}',
     './node_modules/@web-revizor/ui-kit/components/**/*.{js,ts,jsx,tsx}',
   ],
@@ -268,7 +269,9 @@ const config: Config = {
   },
   darkMode: 'selector',
   plugins: [
-    require('@tailwindcss/forms'),
+    // 'class': no global resets of form controls, so the stylesheet can load
+    // next to WordPress's own forms (post editor meta box).
+    require('@tailwindcss/forms')({ strategy: 'class' }),
     require('@tailwindcss/container-queries'),
     plugin(({ matchUtilities }) => {
       matchUtilities(
