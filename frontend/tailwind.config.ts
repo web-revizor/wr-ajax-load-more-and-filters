@@ -13,8 +13,8 @@ const config: Config = {
   presets: [sharedPreset],
   important: '.web-revizor-container',
   content: [
-    './*.php',
-    './inc/**/*.php',
+    '../*.php',
+    '../inc/**/*.php',
     './src/**/*.{js,ts,jsx,tsx}',
     './node_modules/@web-revizor/ui-kit/components/**/*.{js,ts,jsx,tsx}',
   ],

@@ -95,10 +95,15 @@ class WRALM_Hide_Meta_Box
         $value = get_post_meta($post->ID, self::META_KEY, true);
         ?>
         <div class="web-revizor-container">
-            <label for="all_posts_ajax_hide" class="flex cursor-pointer items-center gap-2 text-sm text-on-surface">
-                <input type="checkbox" id="all_posts_ajax_hide" class="!m-0 h-4 w-4 cursor-pointer accent-primary-container"
-                       name="all_posts_ajax_hide" <?php checked((bool) $value); ?>/>
-                <?php esc_html_e('Hide from list', 'wr-ajax-load-more-and-filters'); ?>
+            <?php // A native checkbox drawn as the ui-kit small Toggle (no JS on the editor screen). ?>
+            <label for="all_posts_ajax_hide" class="flex cursor-pointer select-none items-center justify-between gap-3 text-sm text-on-surface">
+                <span><?php esc_html_e('Hide from list', 'wr-ajax-load-more-and-filters'); ?></span>
+                <span class="relative inline-flex shrink-0">
+                    <input type="checkbox" id="all_posts_ajax_hide" class="peer sr-only"
+                           name="all_posts_ajax_hide" <?php checked((bool) $value); ?>/>
+                    <span class="globalTransition block h-[26px] w-[46px] rounded-full border border-solid border-outline-variant/30 bg-surface-container peer-checked:bg-primary-container peer-hover:border-primary peer-focus-visible:border-primary peer-focus-visible:ring-1 peer-focus-visible:ring-primary"></span>
+                    <span class="globalTransition magenta-glow pointer-events-none absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-on-surface peer-checked:translate-x-5"></span>
+                </span>
             </label>
         </div>
         <?php
