@@ -1,7 +1,7 @@
 {
   "name": "wr-ajax-load-more-and-filters",
   "private": true,
-  "version": "1.10.4",
+  "version": "1.10.5",
   "type": "module",
   "scripts": {
     "dev": "vite build --watch",

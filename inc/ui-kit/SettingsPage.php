@@ -141,7 +141,13 @@ class SettingsPage
             ?>
             <form action="options.php" method="post">
                 <?php settings_fields($this->config['group']); ?>
-                <div data-wr-settings="<?php echo esc_attr((string) wp_json_encode($this->schema())); ?>"></div>
+                <?php
+                // esc_attr() does not re-encode existing entities: an &quot; in a
+                // description would turn into a bare quote and break the JSON.
+                // The HEX flags leave no entity-like text in the JSON at all.
+                $json = (string) wp_json_encode($this->schema(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+                ?>
+                <div data-wr-settings="<?php echo esc_attr($json); ?>"></div>
                 <noscript><p><?php echo esc_html($this->strings['no_js']); ?></p></noscript>
             </form>
         </div>
@@ -314,6 +320,8 @@ class SettingsPage
                 return esc_url_raw(trim($value));
             case 'textarea':
                 return sanitize_textarea_field($value);
+            case 'html':
+                return wp_kses_post($value);
             case 'checkbox':
                 return $value === '1' ? '1' : '0';
             case 'number':

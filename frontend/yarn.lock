@@ -964,12 +964,13 @@
     "@types/babel__core" "^7.20.5"
     react-refresh "^0.17.0"
 
-"@web-revizor/ui-kit@^0.9.5":
-  version "0.9.5"
-  resolved "https://npm.pkg.github.com/download/@web-revizor/ui-kit/0.9.5/35ba573f088309c659b301443c9fbfae17890cf5#35ba573f088309c659b301443c9fbfae17890cf5"
-  integrity sha512-zcBf4X23j4nCuVhSL2Lta9AjLCAp0tDN0Ue25HP0tXe07aUpnAOUKKrpp/v3lQ50Fgh0ymORxmYxPIX7pJ3M6w==
+"@web-revizor/ui-kit@^0.11.0":
+  version "0.11.0"
+  resolved "https://npm.pkg.github.com/download/@web-revizor/ui-kit/0.11.0/fa342880998ded121cdcd2b81d58f435bb9ea678#fa342880998ded121cdcd2b81d58f435bb9ea678"
+  integrity sha512-HegWDJaJDJiE/jiNQN6JzWAJ7YeCGDdA72j3RyTBbRyw38CJBc6D8KiYZ9F8Ygvi165h8LkZjHmiOHztvTkKlQ==
   dependencies:
     markdown-to-jsx "9.10.2"
+    react-simple-wysiwyg "^3.4.1"
 
 acorn-jsx@^5.3.2:
   version "5.3.2"
@@ -1932,6 +1933,11 @@ react-refresh@^0.17.0:
   version "0.17.0"
   resolved "https://registry.npmjs.org/react-refresh/-/react-refresh-0.17.0.tgz"
   integrity sha512-z6F7K9bV85EfseRCp2bzrpyQ0Gkw1uLoCel9XBVWPg/TjRj94SkJzUTGfOa4bs7iJvBWtQG0Wq7wnI0syw3EBQ==
+
+react-simple-wysiwyg@^3.4.1:
+  version "3.4.1"
+  resolved "https://registry.yarnpkg.com/react-simple-wysiwyg/-/react-simple-wysiwyg-3.4.1.tgz#e694285f39eda531746ba66244fb6541b7d3feb8"
+  integrity sha512-amppNS/WiUSURSFXg9evcRjRBwK6pf5LRWDACVZT/q4k2TginjNxegxM0T2s2LYulbRFS4eGwO7nv57OskckHw==
 
 react@^19.2.8:
   version "19.3.0"
